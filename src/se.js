@@ -444,7 +444,7 @@ D.Se.prototype = {
     let j = 0;
     let prev = {};
     let curr = {};
-    let next = se.lines[0];
+    let next = se.lines[0] || {};
     for (let i = 0; i < rows; i++) {
       if (se.dirty[i + 1] !== 0) {
         prev = curr;
