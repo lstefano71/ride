@@ -1,4 +1,5 @@
 mod conn;
+mod store;
 mod tls;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -11,6 +12,9 @@ pub fn run() {
             conn::conn_close,
             conn::conn_abort,
             conn::conn_reset,
+            store::store_read,
+            store::store_write,
+            store::store_mtime,
         ])
         .run(tauri::generate_context!())
         .expect("error while running RIDE");

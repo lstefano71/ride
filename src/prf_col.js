@@ -199,8 +199,15 @@
       colors,
     });
     monaco.editor.setTheme(name);
-    if (D.el) {
-      nodeRequire('@electron/remote').getGlobal('winstate').theme = schema.theme;
+    if (D.desktop && D.host.store) {
+      // winstate keeps the theme of the last session for the next launch
+      const { store } = D.host;
+      store.read('winstate').then((r) => {
+        const w = r ? JSON.parse(r.text) : {};
+        if (w.theme === schema.theme) return null;
+        w.theme = schema.theme;
+        return store.write('winstate', JSON.stringify(w));
+      }).catch((e) => console.error(e)); // eslint-disable-line no-console
     }
   };
   const updStl = () => { // update global style from what's in prefs.json

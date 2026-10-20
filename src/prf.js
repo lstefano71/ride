@@ -211,32 +211,39 @@ D.prf = {};
   p.toggle = () => p(!p());
 });
 
-D.db = !nodeRequire ? localStorage : (function DB() {
-  const rq = nodeRequire;
-  const fs = rq('fs');
-  const el = rq('@electron/remote');
-  // file-backed storage with API similar to that of localStorage
+// D.db: the localStorage API over prefs.json (D.host.store's "prefs"), preloaded
+// behind D.host.ready and written behind on every change. Browser: localStorage.
+D.db = !(D.host && D.host.store) ? localStorage : (function DB() {
+  const { store } = D.host;
   const k = []; // keys
   const v = []; // values
-  const f = el.process.env.RIDE_PREFS || `${el.app.getPath('userData')}/prefs.json`;
-  try {
-    if (fs.existsSync(f)) {
-      const h = JSON.parse(fs.readFileSync(f, 'utf8'));
-      Object.keys(h).forEach((x) => { k.push(x); v.push(h[x]); });
-    }
-  } catch (e) { console.error(e); }
+  let loaded = 0;
+  const load = () => {
+    if (loaded) return;
+    const t = store.snapshot('prefs');
+    if (t === undefined) throw new Error('D.db used before D.host.ready');
+    loaded = 1;
+    try {
+      if (t) {
+        const h = JSON.parse(t);
+        Object.keys(h).forEach((x) => { k.push(x); v.push(h[x]); });
+      }
+    } catch (e) { console.error(e); }
+  };
   const dbWrite = () => {
     const s = `{\n${k.map((x, i) => `  ${JSON.stringify(x)}:${JSON.stringify(v[i])}`).sort().join(',\n')}\n}\n`;
-    fs.writeFileSync(f, s);
+    store.write('prefs', s).catch((e) => console.error(e)); // eslint-disable-line no-console
   };
   // var iv=['wse'] //ignored vars (not saved to file)
   const db = {
-    key(x) { return k[x]; },
+    key(x) { load(); return k[x]; },
     getItem(x) {
+      load();
       const i = k.indexOf(x);
       return i < 0 ? null : v[i];
     },
     setItem(x, y) {
+      load();
       const i = k.indexOf(x);
       if (i < 0) {
         k.push(x);
@@ -247,6 +254,7 @@ D.db = !nodeRequire ? localStorage : (function DB() {
       dbWrite();
     },
     removeItem(x) {
+      load();
       const i = k.indexOf(x);
       if (i >= 0) {
         k.splice(i, 1);
@@ -255,12 +263,13 @@ D.db = !nodeRequire ? localStorage : (function DB() {
       }
     },
     _getAll() {
+      load();
       const r = {};
       for (let i = 0; i < k.length; i++) r[k[i]] = v[i];
       return r;
     },
   };
-  Object.defineProperty(db, 'length', { get() { return k.length; } });
+  Object.defineProperty(db, 'length', { get() { load(); return k.length; } });
   return db;
 }());
 if (D.el && D.win && D.prf.ime()) {

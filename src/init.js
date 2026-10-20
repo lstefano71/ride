@@ -239,7 +239,7 @@ const Console = console;
       try {
         D.ipc && D.ipc.server.stop();
         D.ide && D.prf.connectOnQuit() && D.commands.CNC();
-        if (D.ide && !D.ide.connected && D.el) D.wins[0].histWrite();
+        if (D.ide && !D.ide.connected && D.desktop) D.wins[0].histWrite();
       } finally {
         window.onbeforeunload = null;
       }

@@ -2608,6 +2608,7 @@ dependencies = [
 name = "ride"
 version = "4.8.0"
 dependencies = [
+ "dirs",
  "ring",
  "rustls",
  "rustls-pki-types",

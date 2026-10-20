@@ -138,8 +138,8 @@
   };
   D.prf.keys(updKeys);
   D.keyMap.dyalog = {}; // temporarily set keyMap.dyalog to something
-  // wait until D.db is initialised in init.js, then set the real keymap
-  setTimeout(() => { updKeys(D.prf.keys()); }, 1);
+  // wait until D.db is loaded, then set the real keymap
+  (D.host ? D.host.ready : Promise.resolve()).then(() => { updKeys(D.prf.keys()); });
 
   D.prf_tabs.shc = {
     name: 'Shortcuts',

@@ -32,7 +32,7 @@ const results = [];
 const check = (name, ok, detail) => { results.push({ name, ok: !!ok, detail }); };
 
 (async () => {
-  const main = (await pages()).find((p) => /index\.html$/.test(p.url));
+  const main = (await pages()).find((p) => /index\.html$|tauri\.localhost\/?$/.test(p.url));
   const { ws, ev } = await connect(main.webSocketDebuggerUrl);
   const sess = () => ev('D.ide.wins[0].me.getValue()');
   const exec = async (s, tc = 0) => { await ev(`D.ide.exec([${JSON.stringify(s)}],${tc})`); await sleep(1500); };

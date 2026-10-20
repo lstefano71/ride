@@ -35,7 +35,6 @@
   const HP = /^([^:]+|\[[^\]]+\])?(?::(\d+)?(\+)?)?$/; // regex for parsing host and port
   const pathNotFound = /The system cannot find the path specified/; // regex to check response from ssh exec
   const maxl = 1000;
-  const cnFile = D.el && `${D.el.app.getPath('userData')}/connections.json`;
   let protocolLogFile;
   const defaultProtocolLogFile = D.el ? path.join(
     D.el.app.getPath('temp'),
@@ -228,19 +227,21 @@
       );
       return;
     }
-    if (!fs) return; // the connections file reaches Tauri with D.host.store
-    if (fs.existsSync(cnFile) && ((+fs.statSync(cnFile).mtime) !== D.conns_modified)) {
-      const r = $.confirm('Connections file has been modified, do you want to overwrite with your changes?');
-      if (!r) return;
-    }
+    if (!D.desktop) return;
     const b = [...q.favs.children]
       .map((x) => x.cnData);
-    try {
-      fs.writeFileSync(cnFile, JSON.stringify(b));
-      D.conns_modified = +fs.statSync(cnFile).mtime;
-    } catch (e) {
-      toastr.error(`${e.name}: ${e.message}`, 'Save failed');
-    }
+    const { store } = D.host;
+    const write = () => store.write('connections', JSON.stringify(b))
+      .then((t) => { D.conns_modified = t; })
+      .catch((e) => toastr.error(`${e.name}: ${e.message}`, 'Save failed'));
+    store.mtime('connections').then((t) => {
+      if (t == null || t === D.conns_modified) return write();
+      return $.confirm(
+        'Connections file has been modified, do you want to overwrite with your changes?',
+        'Save connections',
+        (x) => x && write(),
+      );
+    }).catch((e) => toastr.error(`${e.name}: ${e.message}`, 'Save failed'));
   };
   const favText = (x) => x.name || 'unnamed';
   const favDOM = (x) => {
@@ -742,6 +743,15 @@
     + '\n  &Third Party Licences    =TPL';
     D.installMenu(D.parseMenuDSL(m));
   };
+  const readConns = () => { // fill D.conns from connections.json
+    D.conns = [];
+    if (!D.desktop) return Promise.resolve();
+    return D.host.store.read('connections').then((r) => {
+      if (!r) return;
+      D.conns.push(...JSON.parse(r.text));
+      D.conns_modified = r.mtime;
+    }).catch((e) => toastr.error(`${e.name}: ${e.message}`, 'Reading connections failed'));
+  };
   const showPage = () => { // set up Connect page
     q = J.cn;
     I.cn.hidden = 0;
@@ -758,11 +768,6 @@
       winstate.launchWin.width = q.lhs.offsetWidth;
     });
     setTimeout(setUpMenu, 100);
-    D.conns = [];
-    if (fs && fs.existsSync(cnFile)) {
-      D.conns.push(...JSON.parse(fs.readFileSync(cnFile).toString()));
-      D.conns_modified = +fs.statSync(cnFile).mtime;
-    }
     getLocalInterpreters();
     const hasCreated = createPresets();
     if (!D.conns.length) D.conns.push({ type: 'connect' });
@@ -1180,7 +1185,7 @@
       }
       q = J.cn;
       go(cnf);
-    } else { showPage(); }
+    } else { readConns().then(showPage); }
   };
 
   {

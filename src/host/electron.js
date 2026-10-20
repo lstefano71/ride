@@ -20,12 +20,58 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
   D.win = /^win/i.test(plt);
   D.mac = plt === 'darwin';
 
+  const fs = nodeRequire('fs');
+  const path = nodeRequire('path');
+
+  // store: files in userData. Calls are synchronous underneath, so writes keep their
+  // order and land before the page can unload. winstate belongs to main.js, which
+  // writes it out: here it reads and updates main's live copy.
+  const ud = D.el.app.getPath('userData');
+  const files = {
+    prefs: D.el.process.env.RIDE_PREFS || `${ud}/prefs.json`,
+    connections: `${ud}/connections.json`,
+    history: `${ud}/hist.txt`,
+  };
+  const file = (name) => {
+    if (!files[name]) throw new Error(`Unknown store: ${name}`);
+    return files[name];
+  };
+  const mtime = (f) => (fs.existsSync(f) ? +fs.statSync(f).mtime : null);
+  const read = (name) => {
+    if (name === 'winstate') return { text: JSON.stringify(D.el.getGlobal('winstate')), mtime: null };
+    const f = file(name);
+    return fs.existsSync(f) ? { text: fs.readFileSync(f, 'utf8'), mtime: mtime(f) } : null;
+  };
+  const write = (name, text) => {
+    if (name === 'winstate') {
+      const w = D.el.getGlobal('winstate');
+      const x = JSON.parse(text);
+      Object.keys(x).forEach((k) => {
+        JSON.stringify(x[k]) !== JSON.stringify(w[k]) && (w[k] = x[k]);
+      });
+      return null;
+    }
+    const f = file(name);
+    fs.writeFileSync(f, text);
+    return mtime(f);
+  };
+  const promise = (f) => (...a) => new Promise((resolve) => { resolve(f(...a)); });
+  let prefs = null;
+  try {
+    const r = read('prefs');
+    prefs = r && r.text;
+  } catch (e) { console.error(e); } // eslint-disable-line no-console
+  D.host.store = {
+    snapshot: (name) => (name === 'prefs' ? prefs : undefined),
+    read: promise(read),
+    write: promise(write),
+    mtime: promise((name) => (name === 'winstate' ? null : mtime(file(name)))),
+  };
+
   // conn: whole RIDE messages over a socket. Each frame is a 4-byte big-endian
   // length (counting itself), the magic "RIDE", then the UTF-8 payload.
   const net = nodeRequire('net');
   const tls = nodeRequire('tls');
-  const fs = nodeRequire('fs');
-  const path = nodeRequire('path');
   const connError = (e) => {
     const many = e.errors && e.errors.length > 1; // e.g. both ::1 and 127.0.0.1 refused
     return {

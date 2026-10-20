@@ -6,9 +6,31 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
 (function hostTauri() {
   if (!window.__TAURI__) return;
   D.desktop = true;
-  D.host = { kind: 'tauri', ready: Promise.resolve() };
-
   const { invoke, Channel } = window.__TAURI__.core;
+
+  // store: files in the data folder shared with Electron (src-tauri/src/store.rs).
+  // prefs is preloaded behind D.host.ready, for D.db's synchronous facade.
+  const snap = {};
+  const writes = {}; // per-name chain, so writes land in the order they were made
+  const storeError = (e) => (e instanceof Error ? e : new Error(String(e)));
+  const store = {
+    snapshot: (name) => snap[name],
+    read: (name) => invoke('store_read', { name }).catch((e) => { throw storeError(e); }),
+    write(name, text) {
+      const p = (writes[name] || Promise.resolve())
+        .then(() => invoke('store_write', { name, text }))
+        .catch((e) => { throw storeError(e); });
+      writes[name] = p.catch(() => {});
+      return p;
+    },
+    mtime: (name) => invoke('store_mtime', { name }).catch((e) => { throw storeError(e); }),
+  };
+  const ready = store.read('prefs').then((r) => { snap.prefs = r ? r.text : null; }, (e) => {
+    console.error(e); // eslint-disable-line no-console
+    snap.prefs = null;
+  });
+  D.host = { kind: 'tauri', ready, store };
+
   const connError = (e) => (e && typeof e === 'object'
     ? Object.assign(new Error(e.message), e)
     : Object.assign(new Error(String(e)), { code: 'EIO' }));

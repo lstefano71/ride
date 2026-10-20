@@ -208,23 +208,16 @@ D.Se = function Se(ide) { // constructor
 };
 D.Se.prototype = {
   histRead() {
-    if (!D.el || !D.prf.persistentHistory()) return;
-    const fs = nodeRequire('fs');
-    const d = D.el.app.getPath('userData');
-    const f = `${d}/hist.txt`;
-    try {
-      if (fs.existsSync(f)) {
-        const l = fs.readFileSync(f, 'utf8').split('\n');
-        this.histAdd(l);
-      }
-    } catch (e) { console.error(e); }
+    if (!D.desktop || !D.prf.persistentHistory()) return;
+    D.host.store.read('history').then((r) => {
+      // older than anything entered while the read was in flight
+      r && this.hist.push(...r.text.split('\n'));
+    }).catch((e) => console.error(e)); // eslint-disable-line no-console
   },
   histWrite() {
-    if (!D.el || !D.prf.persistentHistory()) return;
-    const fs = nodeRequire('fs');
-    const d = D.el.app.getPath('userData');
-    const f = `${d}/hist.txt`;
-    fs.writeFileSync(f, this.hist.slice(1, 1 + D.prf.persistentHistorySize()).join('\n'));
+    if (!D.desktop || !D.prf.persistentHistory()) return;
+    const t = this.hist.slice(1, 1 + D.prf.persistentHistorySize()).join('\n');
+    D.host.store.write('history', t).catch((e) => console.error(e)); // eslint-disable-line no-console
   },
   histAdd(lines) {
     this.hist[0] = '';
@@ -674,6 +667,7 @@ D.Se.prototype = {
     se.ide.exec(es, trace);
     se.setDecorations();
     se.histAdd(es.filter((x) => !/^\s*$/.test(x)));
+    se.histWrite(); // write behind: a Tauri window can close before an unload-time write lands
     model._commandManager.clear();
   },
   autoCloseBrackets(x) { this.me.updateOptions({ autoClosingBrackets: x }); },
