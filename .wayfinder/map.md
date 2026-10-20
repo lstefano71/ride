@@ -25,14 +25,16 @@ RIDE runs as a Tauri v2 app built from the `tauri-port` branch: it connects over
 
 <!-- one line per closed ticket -->
 
+- [Research how Tauri v2 can support floating editor windows](tickets/003-research-tauri-floating-windows.md): one `WebviewWindow` per floating window plus a label-addressed event shim replacing `node-ipc`; RIDE never shared JS synchronously across windows; docked mode can ship first.
+- [Research Tauri v2 coverage of RIDE's Electron features](tickets/004-research-tauri-api-coverage.md): no blockers; main costs are async-everything, dialog/menu small gaps, data-folder relocation; about 2.7 MiB base exe, so under 20 MB is realistic.
+- [Research TLS connections in Rust for RIDE](tickets/005-research-tls-connect.md): rustls with a custom CN verifier works against Dyalog 20 (2–4 days); today's TLS option is silently dead in `cn.js`.
+
 ## Not yet specified
 
 - **Wiring the frontend to the host adapter in the Electron shell.** Shape depends on the host-adapter design; probably several tickets split by area (windows, menus, prefs, file IO).
 - **Tauri implementation of each adapter area** beyond the connection: menus and context menus, dialogs, clipboard, open-external, zoom, devtools.
-- **Floating editor windows in Tauri.** Approach waits on the floating-windows research; parity is the goal unless it proves costly.
-- **Preferences persistence.** Where prefs live under Tauri, and whether existing Electron prefs are migrated or read in place.
-- **TLS connections.** Exploratory; graduates once the TLS research reports.
-- **Packaging and size.** Bundle config per platform, measuring and trimming the Windows exe under 20 MB, Linux WebKitGTK quirks.
+- **Window bounds and layouts.** Porting `main.js`'s two-layout bounds save/restore (the window-state plugin doesn't fit).
+- **Packaging and size.** Bundle config per platform, measuring and trimming the Windows exe under 20 MB, Linux WebKitGTK quirks (IME, fonts, NVIDIA flicker), macOS paste prompt.
 - **Build integration.** How Grunt/LESS output feeds Tauri's frontend dist; whether CI is touched at all.
 
 ## Out of scope
