@@ -49,11 +49,13 @@ const incl = new RegExp('^$'
   + '|^/(src|lib|node_modules|_)(/|$)'
   + '|^/style($|/(fonts|img)|.*\\.css$)');
 const pkg = (x, y, f) => {
-  rq('electron-packager')({
+  const version = isDyalogBuild ? process.env.APPVERSION : v;
+  const tmpdir = `/tmp/ridebuild_${version}_${rq('os').userInfo().username}`;
+  rq('@electron/packager')({
     dir: '.',
     platform: x,
     arch: y,
-    tmpdir: '/tmp/ridebuild',
+    tmpdir,
     out: `_/${pj.name}`,
     overwrite: true,
     'download.cache': 'cache',
@@ -62,21 +64,22 @@ const pkg = (x, y, f) => {
       || /monaco-editor\/(dev|esm|min-maps)/.test(p)
       || /toastr\/(?!build($|\/toastr.min))/.test(p)
       || /jquery\/(?!dist($|\/jquery\.min\.js))/.test(p)
+      || /node_modules\/.*\/node_gyp_bins/.test(p)
       || /node_modules\/\.bin/.test(p)
       || /\/test/.test(p)
       || /\.map$/.test(p),
     appBundleId: `com.dyalog.${pj.name}`,
     appCopyright: `(c) 2014-${new Date().getFullYear()} Dyalog Ltd`,
-    appVersion: isDyalogBuild ? process.env.APPVERSION : v,
-    buildVersion: isDyalogBuild ? process.env.APPVERSION : v,
+    appVersion: version,
+    buildVersion: version,
     appCategoryType: 'public.app-category.developer-tools',
     extendInfo: isDyalogBuild ? 'CI/packagescripts/osx/Info.plist' : null,
     win32metadata: { // ends up in Windows Explorer's right click > Properties
       CompanyName: 'Dyalog Ltd',
-      FileDescription: 'Remote Integrated Development Environment for Dyalog APL',
+      FileDescription: 'Cross-platform IDE for Dyalog APL',
       OriginalFilename: `${pj.productName}.exe`,
-      ProductName: 'RIDE',
-      InternalName: 'RIDE',
+      ProductName: 'Ride',
+      InternalName: 'Ride',
     },
   }).then(() => {
     const d = `_/${pj.name}/${pj.productName}-${x}-${y}`;
@@ -88,6 +91,7 @@ const pkg = (x, y, f) => {
 };
 
 const l = (f) => { b(e => (e ? f(e) : pkg('linux', 'x64', f))); };
+const la= (f) => { b(e => (e ? f(e) : pkg('linux', 'arm64', f))); };
 const w = (f) => { b(e => (e ? f(e) : pkg('win32', 'ia32', f))); };
 const o = (f) => { b(e => (e ? f(e) : pkg('darwin', 'x64', f))); };
 const oa= (f) => { b(e => (e ? f(e) : pkg('darwin', 'arm64', f))); };
@@ -100,6 +104,7 @@ const c = (f) => { rm('_'); rm('/tmp/ridebuild'); f(); };
 
 tasks.b = b; tasks.build = b;
 tasks.l = l; tasks.linux = l;
+tasks.la = la; tasks.linuxarm = la;
 tasks.w = w; tasks.win = w;
 tasks.o = o; tasks.osx = o;
 tasks.oa=oa; tasks.osxarm = oa;

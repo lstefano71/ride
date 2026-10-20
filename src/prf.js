@@ -7,6 +7,7 @@
 'use strict'
 D.prf = {};
 [ // name                 default (type is determined from default value; setter enforces type and handles encoding)
+  ['autoStart',          0], // Auto-start default configuration when Ride starts
   ['autoCloseBrackets',  1], //whether to insert {}[]() in pairs
   ['autocompletion',     'classic'],
   ['autoPW',             0], // update PW on resize of window
@@ -19,13 +20,15 @@ D.prf = {};
   ['colourSchemes',      []],//objects describing user-defined colour schemes
   ['confirmations',      {}],//saved responses to TaskDialog questions
   ['connectOnQuit',      0], // open connection page when active session ends
+  ['customAplFont',      ''], // custom APL font, e.g. Consolas
+  ['defaultConfig',      ''], // default session configuration
   ['doubleClickToEdit',  1], // whether double clicking a function name in session or editor opens an editor on that function
   ['filenameInTitle',    1], // include filename in editor title
   ['floating',           0], //floating editor and tracer windows
   ['floatSingle',        1], //create single floating edit window
   ['fold',               1], //code folding
   ['ilf',                1], //when re-formating use ODE style (interpreter level formatting)
-  ['ime',                0], //switch to dyalog IME when RIDE starts (Windows-only)
+  ['ime',                0], //switch to dyalog IME when Ride starts (Windows-only)
   ['indent',             4], //-1 disables autoindent
   ['indentComments',     0], //whether to touch comment-only lines at all
   ['indentMethods',      -1],//-1 makes methods use the same indent as all other blocks
@@ -46,6 +49,7 @@ D.prf = {};
   ['persistentHistorySize',100], // max lines to save
   ['prefixKey',          '`'],
   ['prefixMaps',         {}],//per-locale strings of pairs of characters - diffs from the default map for that locale
+  ['presetsCreated',     []],
   ['pfkeys',             [...Array(49)].map(() => '')], //command strings for pfkeys
   ['renderLineHighlight','none'], // highlight current line
   ['sbar',               1], //show status bar
@@ -54,9 +58,10 @@ D.prf = {};
   ['sessionLogSize',     0],// max lines of session log to show (0 = unlimited)
   ['showCCGC',           0], // show CC and GC in statusbar
   ['showEditorToolbar',  1],// show toolbar in editor windows
+  ['showSessionMargin',  1],// show session margin
   ['snippetSuggestions', 1],// show snippet suggestions
   ['statusWindow',       0], //show status window
-  ['title',              '{WSID}'], //a.k.a. "caption"
+  ['title',              '{CAPTION}'], //a.k.a. "caption"
   ['valueTips',          1], //value tips
   ['dbg',                0], //show debug panel
   ['sqp',                1], //show quit prompt
@@ -74,25 +79,30 @@ D.prf = {};
     '# see below for syntax'
     + '\n'
     + '\nDyalog                          {mac}'
-    + '\n  About Dyalog             =ABT'
+    + '\n  About                    =ABT'
     + '\n  -'
     + '\n  Preferences...           =PRF'
     + '\n  -                            '
+    + '\n  Hide                         {mac}'
+    + '\n  Hide Others                  {mac}'
+    + '\n  Show All                     {mac}'
+    + '\n  -                            {mac}'
     + '\n  &Quit                    =QIT'
     + '\n&File                           {!browser}'
     + '\n  &Open...                 =OWS {local}'
-    + '\n  &New Session             =NEW'
-    + '\n  &Connect...              =CNC'
+    + '\n  &New Session...          =CNC'
     + '\n  -                             {!mac}'
     + '\n  &Quit                    =QIT {!mac}'
     + '\n&Edit'
-    + '\n  Undo                     =UND {!browser}'
-    + '\n  Redo                     =RDO {!browser}'
-    + '\n  -                             {!browser}'
-    + '\n  Cut                      =CT  {!browser}'
-    + '\n  Copy                     =CP  {!browser}'
-    + '\n  Paste                    =PT  {!browser}'
-    + '\n  Select All               =SA  {mac}'
+    + '\n  Reformat                 =RD'
+    + '\n  -                            '
+    + '\n  Undo                     =UND'
+    + '\n  Redo                     =RDO'
+    + '\n  -                            '
+    + '\n  Cut                      =CT '
+    + '\n  Copy                     =CP '
+    + '\n  Paste                    =PT '
+    + '\n  Select All               =SA'
     + '\n  -                             {mac||!browser}'
     + '\n  &Find...                 =SC'
     + '\n  Find and &Replace...     =RP'
@@ -126,14 +136,17 @@ D.prf = {};
     + '\n  Clear all trace/stop/monitor =CAM'
     + '\n  Weak Interrupt           =WI'
     + '\n  Strong Interrupt         =SI'
+    + '\n  -'
+    + '\n  Reset Language Bar       =RLB'
     + '\n&Threads                        {rp21}'
     + '\n  Pause on Error           =POE'
     + '\n  Pause all Threads        =PAT'
     + '\n  Unpause all threads      =UAT'
     + '\n  Continue all threads     =MA'
     + '\n&Help'
-    + '\n  Getting &Started         =https://dyalog.com/introduction.htm'
+    + '\n  Getting &Started         =https://dyalog.com/getting-started.htm'
     + '\n  -'
+    + '\n  &Ride User Guide         =RHP'
     + '\n  Dyalog &Help             =DHI'
     + '\n  &Language Elements       =LEL'
     + '\n  &Documentation Centre    =DOX'

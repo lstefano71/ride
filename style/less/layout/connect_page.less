@@ -1,3 +1,6 @@
+@CN_CONTENT_TOP: 34px;
+@CN_CONTENT_BTM: 64px;
+
 #cn {
 	position: absolute;
   z-index:2;
@@ -5,7 +8,7 @@
 	right: 0;
 	top: 0;
 	bottom: 0;
-	*,#cn_env_add a,input{
+	#cn_rhs_inner *,#cn_env_add a,input{
     .ui-font-mixin;
   }
   input:not([type=button]):not([type=file]):not([type=submit]):not([type=checkbox]),textarea{
@@ -34,77 +37,83 @@
 	.indent {
 		margin-left: 24px;
 	}
+  .dlg_btns{
+    button { margin: 2px; }
+    .left{
+      text-align: left;
+    }
+    .right{
+      text-align: right;
+    }
+  }
+  textarea {
+    resize: vertical;
+  }
 }
-
 #cn_favs {
-  position:absolute;
-  top: 0;
+  position: absolute;
+  top: @CN_CONTENT_TOP;
   left: 0;
   right: 0;
-  bottom: 42px;
+  bottom: @CN_CONTENT_BTM;
 	overflow: auto;
 	>div {
-		line-height: 46px;
+		line-height: 36px;
 		padding: 0 2px 0 8px;
 		margin-bottom: 1px;
 		cursor: default;
-	}
-	.go {
-		float: right;
-		margin-top:6px;
-    margin-right:5px;
-    width:32px;
-    height:32px;
-    border-radius:2px;
-    padding:1px 6px;
-    // content:">";
-    font-size:1em;
-    line-height:0px;
-	}
+
+    .go {
+      float: left;
+    }
+    .cog {
+      float: right;
+    }    
+    .go, .cog {
+      margin-top:2px;
+      margin-right:5px;
+      width:32px;
+      height:32px;
+      border-radius:2px;
+      padding:1px 6px;
+      font-size:1em;
+      line-height:0px;
+    }
+  }
+  
   .name{
     font-weight:600;
+    font-size:14px;
   }
 	div {
 		position: relative;
 	}
 }
-#cn_fav_btns {
-  position:absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  margin: 0;
-	overflow: hidden;
-	* {
-    text-align: center;
-    font-size: 16px;
-  }
-  .tb_btn {
-    height: 30px;
-    width: 30px;
-  }
-  
-}
 
-#cn_rhs>*>.row, #cn_rhs>.row, #cn_dtl>*>.row {
-    /* margin: 10px 0px; */
+#cn_rhs_inner>*>.row, #cn_rhs_inner>.row, #cn_dtl>*>.row {
     padding: 3px 0px;
 }
-#cn_lhs,#cn_rhs{
-  position:static;
-  height:calc(100% - 40px);
-}
 #cn_lhs {
-  padding:0px;
+  min-width: 400px;
 	overflow: hidden;
+  padding:0px;
+  user-select: none;
 }
 #cn_rhs {
-	padding: 10px;
+  min-width: 475px;
+}
+#cn_rhs_inner {
   overflow-y: auto;
   overflow-x: hidden;
+  padding: 2px 8px;
+  height:calc(100% - @CN_CONTENT_BTM - @CN_CONTENT_TOP);
   button{
     padding:8px;
+    width: auto;
   }
+  .row .col-sm-12:first-child {
+    padding-bottom: 2px;
+  }  
   .col{
     // >input,>select,>button{
     >input:not([type=checkbox]),>select{
@@ -114,8 +123,6 @@
       }
     }
   }
-}
-#cn_rhs_inner {
 	p {
 		padding: 4px 0;
 	}
@@ -156,4 +163,12 @@
 
 #cn_args, #cn_env {
   width:100%;
+}
+.cn_head {
+  width:100%;
+  height: @CN_CONTENT_TOP;
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  padding: 0 8px; 
 }

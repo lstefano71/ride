@@ -8,6 +8,12 @@ button{
   background:@BUTTON_BG_COL;
   color:@BUTTON_COL;
   &:hover{color:@BUTTON_HOVER_COL}
+  &:disabled{
+    cursor: default;
+    color: fade(@BUTTON_COL, 50);
+    background: @INPUT_OFF;
+    border-color: @INPUT_OFF;
+  }
   border-radius: 4px;
   background-image: -moz-linear-gradient( 90deg, @THEME_PRIMARY 0%, @THEME_HIGHLIGHT 100%);
   background-image: -webkit-linear-gradient( 90deg, @THEME_PRIMARY 0%, @THEME_HIGHLIGHT 100%);
@@ -49,7 +55,7 @@ input:disabled+label{
     }
 }
 select{
-  background-color:	@CN_SELECT_BG;
+  background-color:	@CN_INPUT_BG;
   border: 1px solid @CN_INPUT_BORDER_COL;
   color:@CN_SELECT_FG;
 }

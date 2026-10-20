@@ -13,6 +13,8 @@
   const fs = rq('fs');
   const cp = rq('child_process');
   const home = rq('os').homedir();
+  const nets = rq('os').networkInterfaces();
+  const localhosts = [...Object.keys(nets).map((intf) => nets[intf].map((k) => k.address)).flat(), 'localhost'];
   const net = rq('net');
   const path = rq('path');
   const untildify = (x) => (x && home ? x.replace(/^~(?=$|\/|\\)/, home) : x);
@@ -22,13 +24,13 @@
   const KV = /^([a-z_]\w*)=(.*)$/i;
   const WS = /^\s*$/; // KV:regexes for parsing env vars
   const HP = /^([^:]+|\[[^\]]+\])?(?::(\d+)?(\+)?)?$/; // regex for parsing host and port
+  const pathNotFound = /The system cannot find the path specified/; // regex to check response from ssh exec
   const maxl = 1000;
   const cnFile = `${D.el.app.getPath('userData')}/connections.json`;
-  const lcnFile = `${D.el.app.getPath('userData')}/last_configuration.json`;
   let protocolLogFile;
   const defaultProtocolLogFile = path.join(
     D.el.app.getPath('temp'),
-    `RIDE-${D.versionInfo.version}-${D.el.process.pid}.log`,
+    `Ride-${D.versionInfo.version}-${D.el.process.pid}.log`,
   );
   const trunc = (x) => (x.length > maxl ? `${x.slice(0, maxl - 3)}...` : x);
   const shEsc = (x) => `'${x.replace(/'/g, "'\\''")}'`; // shell escape
@@ -68,8 +70,10 @@
     if (!(e instanceof Error)) {
       $.err(...x);
     } else if (e.code === 'ENOTFOUND') {
-      $.err(`The host "${e.host}" could not be found.`, 'Host not found');
-    } else if (e.code !== 'ETIMEDOUT') $.err(e.message, e.name);
+      $.err(`The host "${e.hostname}" could not be found.`, 'Host not found');
+    } else if (e.errors && e.errors.length > 1) {
+      $.err(e.errors.map((y) => y.message).join('\n'), e.code);
+    } else if (!['ECONNRESET', 'ETIMEDOUT'].includes(e.code)) $.err(e.message, e.name);
   };
   const passwdPrompt = (text, title) => {
     setTimeout(() => D.util.stringDialog(
@@ -91,6 +95,116 @@
       },
     ), 10);
   };
+  const formatInterpreters = (interpretersList) => {
+    interpretersList
+      .sort((x, y) => cmpVer(y.ver, x.ver) || +y.bits - +x.bits
+        || (y.edition === 'unicode') - (x.edition === 'unicode')
+        || (y.opt > x.opt) - (y.opt < x.opt))
+      .forEach((x) => {
+        x.supported = cmpVer(x.ver, MIN_V) >= 0;
+        x.name = `v${
+          x.ver.join('.')}${
+          x.bits === 64 ? '' : `, ${x.bits}-bit`}${
+          x.edition === 'unicode' ? '' : `, ${x.edition.replace(/^./, (w) => w.toUpperCase())}`}${
+          x.opt ? `, ${x.opt}` : ''}${
+          x.supported ? '' : ' (unsupported)'}`;
+      });
+  };
+  const getLocalInterpreters = () => { // collect information about installed interpreters
+    interpreters.splice(0);
+    try {
+      if (/^win/.test(process.platform)) {
+        const s = cp.execSync(
+          'reg query "HKEY_CURRENT_USER\\Software\\Dyalog" /s /v localdyalogdir',
+          { timeout: 4000, encoding: 'UTF8' },
+        );
+        let b; // b:bits
+        let v; // v:version
+        let u; // u:edition
+        let n; // n:match object
+        s && s.split('\r\n').forEach((x) => {
+          if (x) {
+            if ((n = /^HK.*\\Dyalog APL\/W(-64)? (\d+\.\d+)( Unicode)?$/i.exec(x))) {
+              [, b, v, u] = n;
+              b = b ? 64 : 32;
+              u = u ? 'unicode' : 'classic';
+            } else if (v && (n = /^ *localdyalogdir +REG_SZ +(\S.*)$/i.exec(x))) {
+              interpreters.push({
+                exe: `${n[1]}\\dyalog.exe`,
+                ver: parseVer(v),
+                bits: b,
+                edition: u,
+                opt: '',
+              });
+            } else if (!/^\s*$/.test(x)) {
+              b = null;
+              v = null;
+              u = null;
+            }
+          }
+        });
+      } else if (process.platform === 'darwin') {
+        const rd = '/Applications';
+        ls(rd).forEach((x) => {
+          const n = /^Dyalog-(\d+\.\d+)\.app$/.exec(x);
+          const exe = `${rd}/${x}/Contents/Resources/Dyalog/mapl`;
+          n && fs.existsSync(exe) && interpreters.push({
+            exe,
+            ver: parseVer(n[1]),
+            bits: 64,
+            edition: 'unicode',
+            opt: '',
+          });
+        });
+      } else {
+        const rd = '/opt/mdyalog';
+        const sil = (g) => (x) => { try { g(x); } catch (_) { /* exception silencer */ } };
+        ls(rd).forEach(sil((v) => {
+          if (/^\d+\.\d+/.test(v)) {
+            ls(`${rd}/${v}`).forEach(sil((b) => {
+              if (b === '32' || b === '64') {
+                ls(`${rd}/${v}/${b}`).forEach(sil((u) => {
+                  if (u === 'unicode' || u === 'classic') {
+                    const exe = `${rd}/${v}/${b}/${u}/mapl`;
+                    fs.existsSync(exe) && interpreters.push({
+                      exe,
+                      ver: parseVer(v),
+                      bits: +b,
+                      edition: u,
+                      opt: '',
+                    });
+                  }
+                }));
+              }
+            }));
+          }
+        }));
+      }
+    } catch (e) { console.error(e); }
+    formatInterpreters(interpreters);
+  };
+  const createPresets = () => {
+    const prCr = [...D.prf.presetsCreated()];
+    const newInterpreters = interpreters.filter((x) => {
+      const inConns = D.conns.findIndex((y) => y.preset && y.exe === x.exe) >= 0;
+      const inPrCr = prCr.indexOf(x.exe) >= 0;
+      return x.supported && !inConns && !inPrCr;
+    });
+    const newPresets = newInterpreters.map((int) => ({
+      name: int.name,
+      type: 'start',
+      subtype: 'raw',
+      exe: int.exe,
+      preset: true,
+    }));
+    const hasCreated = newPresets.length > 0;
+    if (hasCreated) {
+      prCr.push(...newPresets.map((x) => x.exe));
+      D.prf.presetsCreated(prCr);
+      D.conns.push(...newPresets);
+    }
+    return hasCreated;
+  };
   const save = () => {
     const names = $('.name', q.favs).toArray().map((x) => x.innerText);
     const dups = names.filter((a, i) => names.indexOf(a) !== i);
@@ -99,7 +213,7 @@
         `The following name${dups.length ? 's are' : ' is'} duplicated:\n${dups.join('\n')}`,
         'Duplicate connection names',
         () => {
-          $(q.favs).list('select', names.lastIndexOf(dups[0]));
+          $(q.favs).list('select', names.indexOf(dups[0]));
           $(q.fav_name).focus();
         },
       );
@@ -109,24 +223,11 @@
       const r = $.confirm('Connections file has been modified, do you want to overwrite with your changes?');
       if (!r) return;
     }
-    const a = q.favs.children;
-    const b = [];
-    for (let i = 0; i < a.length; i++) {
-      const conf = a[i].cnData;
-      conf.name !== 'last configuration' && b.push(conf);
-    }
-    D.conns = b;
+    const b = [...q.favs.children]
+      .map((x) => x.cnData);
     try {
-      fs.writeFileSync(cnFile, JSON.stringify(D.conns));
+      fs.writeFileSync(cnFile, JSON.stringify(b));
       D.conns_modified = +fs.statSync(cnFile).mtime;
-      toastr.success(cnFile, 'Configuration saved.');
-    } catch (e) {
-      toastr.error(`${e.name}: ${e.message}`, 'Save failed');
-    }
-  };
-  const saveLastConf = (conf) => {
-    try {
-      fs.writeFileSync(lcnFile, JSON.stringify({ ...conf, name: 'last configuration' }));
     } catch (e) {
       toastr.error(`${e.name}: ${e.message}`, 'Save failed');
     }
@@ -135,22 +236,20 @@
   const favDOM = (x) => {
     const e = document.createElement('div');
     e.cnData = x;
-    e.innerHTML = `<span class=name>${esc(favText(x))}</span><button class="go tb_btn"><span class="fas fa-play"></span></button>`;
+    e.innerHTML = `<span class="name">${esc(favText(x))}</span>\
+    <button class="go tb_btn" title="Start now">\
+      <span class="fas fa-play"></span>\
+    </button>\
+    <button class="cog tb_btn" title="Show config details">\
+      <span class="fas fa-cog"></span>\
+    </button>`;
     return e;
   };
   const updExes = () => {
     const ssh = q.subtype.value === 'ssh';
-    const h = (ssh ? interpretersSSH : interpreters)
-      .sort((x, y) => cmpVer(y.ver, x.ver) || +y.bits - +x.bits
-        || (y.edition === 'unicode') - (x.edition === 'unicode')
-        || (y.opt > x.opt) - (y.opt < x.opt))
-      .map((x) => {
-        let s = `v${x.ver.join('.')}, ${x.bits}-bit, ${x.edition.replace(/^./, (w) => w.toUpperCase())}${x.opt ? `, ${x.opt}` : ''}`;
-        const supported = cmpVer(x.ver, MIN_V) >= 0;
-        supported || (s += ' (unsupported)');
-        return `<option value="${esc(x.exe)}"${supported ? '' : ' disabled'}>${esc(s)}`;
-      }).join('');
-    q.exes.innerHTML = `${h}<option value="">Other...`;
+    q.exes.innerHTML = (ssh ? interpretersSSH : interpreters)
+      .map((x) => `<option value="${esc(x.exe)}"${x.supported ? '' : ' disabled'}>${esc(x.name)}`)
+      .join('').concat('<option value="">Other...');
     q.exes.value = q.exe.value;
     if (!q.exes.value) {
       q.exes.selectedIndex = 0;
@@ -176,10 +275,9 @@
       || (q.type.value === 'start' && q.subtype.value === 'ssl')) q.subtype.value = 'raw';
     updSubtype();
     q.ssl_opt.hidden = q.type.value !== 'connect';
-    q.raw_opt.text = q.type.value === 'start' ? 'Local' : 'TCP';
+    q.raw_opt.text = q.type.value === 'start' ? 'on this computer' : 'via TCP';
     q.fetch.hidden = q.type.value !== 'start';
     q.start.hidden = q.fetch.hidden;
-    q.go.innerHTML = `<u>${q.type.value[0]}</u>${q.type.value.substr(1)}`;
   };
   const validate = (x) => {
     const t = x.type;
@@ -194,7 +292,7 @@
     }
     if ((t === 'connect' && ssh) && x.tcp_port
       && (!/^\d*$/.test(x.tcp_port) || +x.tcp_port < 1 || +x.tcp_port > 0xffff)) {
-      $.err('Invalid RIDE port', () => { q.tcp_port.select(); });
+      $.err('Invalid Ride port', () => { q.tcp_port.select(); });
       return 0;
     }
     if (t === 'start') {
@@ -214,7 +312,7 @@
         $.err(`${q.cwd.labels[0].innerText} "${untildify(x.cwd)}" does not exist`, () => { q.cwd.focus(); });
         return 0;
       }
-      if (x === sel && ssh) {
+      if (ssh) {
         if (!q.ssh_pass.value && !q.ssh_key.value) {
           passwdPrompt(`Password for user ${x.user || user}:`, 'Password');
           return 0;
@@ -225,6 +323,7 @@
   };
   const initInterpreterConn = () => {
     hideDlgs();
+    nodeRequire('electron').ipcRenderer.send('save-win', false);
     let b = Buffer.alloc(0x100000);
     let ib = 0; // ib:offset in b
     let nb = 0; // nb:length in b
@@ -255,12 +354,12 @@
           D.recv && D.recv(u[0], u[1]);
         } else if (m[0] === '<' && !old) {
           old = 1;
-          err('This version of RIDE cannot talk to interpreters older than v15.0');
+          err('This version of Ride cannot talk to interpreters older than v15.0');
         } else if (/^UsingProtocol=/.test(m)) {
           if (m.slice(m.indexOf('=') + 1) === '2') {
             handshakeDone = true;
           } else {
-            err('Unsupported RIDE protocol version');
+            err('Unsupported Ride protocol version');
             break;
           }
         }
@@ -277,7 +376,7 @@
         D.ide && D.ide.die();
       } else {
         err('Either no interpreter is listening on the specified port'
-         + ' or the interpreter is already serving another RIDE client.', 'Connection rejected');
+         + ' or the interpreter is already serving another Ride client.', 'Connection rejected');
         D.ide && D.ide.die();
         D.commands.CNC();
       }
@@ -285,7 +384,7 @@
     });
     sendEach([
       'SupportedProtocols=2', 'UsingProtocol=2',
-      '["Identify",{"identity":1}]', '["Connect",{"remoteId":2}]', '["GetWindowLayout",{}]',
+      '["Identify",{"apiVersion":1,"identity":1}]', '["Connect",{"remoteId":2}]', '["GetWindowLayout",{}]',
     ]);
   };
   const sshExec = (x, cmd, f) => { // f:callback
@@ -339,6 +438,7 @@
   const connect = (x) => {
     let m = net; // m:module used to create connection
     const o = { host: x.host, port: x.port }; // o:options for .connect()
+    D.isLocalInterpreter = localhosts.includes(x.host.toLowerCase());
     if (x.ssl) {
       try {
         m = rq('tls');
@@ -365,7 +465,7 @@
     clt.on('error', (e) => {
       log(`connect failed: ${e}`);
       if (D.tmr && D.ide && e.code === 'ECONNABORTED') {
-        err('The interpreter is already serving another RIDE client.', 'Connection closed by interpreter');
+        err('The interpreter is already serving another Ride client.', 'Connection closed by interpreter');
         D.ide.die();
         D.commands.CNC();
       } else err(e);
@@ -380,7 +480,7 @@
   const go = (conf) => { // "Go" buttons in the favs or the "Go" button at the bottom
     const x = conf || sel;
     if (!validate(x)) return 0;
-    saveLastConf(x);
+    D.prf.defaultConfig(x.name);
     protocolLogFile = x.log;
     D.spawned = 0;
     try {
@@ -393,11 +493,6 @@
               port: +x.ssh_port || 22,
               user: x.user || user,
             };
-            // if (x.ssh_auth_type === 'key') {
-            //   o.key = x.ssh_key;
-            // } else {
-            //   o.pass = x === sel ? q.ssh_pass.value : '';
-            // }
             x.ssh_key && (o.key = x.ssh_key);
             x === sel && q.ssh_pass.value && (o.pass = q.ssh_pass.value);
             const c = sshExec(o, '/bin/sh', (e, sm) => {
@@ -497,7 +592,7 @@
           const env = {
             SINGLETRACE: '1',
             ...envusr,
-            APLK0: 'default',
+            ...(!D.win || x.subtype === 'ssh') && { APLK0: 'default' },
             AUTOCOMPLETE_PREFIXSIZE: '0',
             CLASSICMODE: '1',
             RIDE_SPAWNED: '1',
@@ -513,7 +608,12 @@
             x === sel && q.ssh_pass.value && (o.pass = q.ssh_pass.value);
             const c = sshExec(o, '/bin/sh', (e, sm) => {
               if (e) throw e;
+              let stdout = '';
+              sm.on('data', (xx) => { stdout += xx; });
               sm.on('close', (code, sig) => {
+                if (pathNotFound.test(stdout)) {
+                  err('Remote connections to Windows hosts is not supported', 'Windows host');
+                }
                 D.ide && D.ide._sshExited({ code, sig });
                 c.end();
               });
@@ -533,6 +633,50 @@
             });
             cancelOp(c);
           } else {
+            D.isLocalInterpreter = true;
+            const onExit = (code, sig) => {
+              srv && srv.close();
+              srv = 0;
+              clt = 0;
+              child = 0;
+              clearTimeout(D.tmr);
+              delete D.tmr;
+              if (code !== 0) {
+                err(`Interpreter ${code != null ? `exited with code ${code}` : `received ${sig}`}`);
+                D.ide && D.ide.die();
+              }
+            };
+            const onError = (y) => {
+              srv && srv.close();
+              srv = 0;
+              clt = 0;
+              child = 0;
+              clearTimeout(D.tmr);
+              delete D.tmr;
+              switch (y.code) {
+                case 'ENOENT': err('Cannot find the interpreter\'s executable'); return;
+                case 'EACCES': err('Access error when starting interpreter executable'); return;
+                default: err('Failed to start interpreter');
+              }
+            };
+            const cancel = (e) => {
+              if (e) {
+                clearTimeout(D.tmr);
+                delete D.tmr;
+              } else {
+                err('Timed out');
+              }
+              srv && srv.close();
+              srv = 0;
+              if (child) {
+                child.off('exit', onExit);
+                child.off('error', onError);
+                child.kill();
+                child = 0;
+              }
+              hideDlgs();
+              return !1;
+            };
             srv = net.createServer((y) => {
               log('spawned interpreter connected');
               const adr = srv.address();
@@ -578,43 +722,9 @@
                 });
               } catch (e) { err(e); return; }
               D.lastSpawnedExe = x.exe;
-              child.on('exit', (code, sig) => {
-                srv && srv.close();
-                srv = 0;
-                clt = 0;
-                child = 0;
-                clearTimeout(D.tmr);
-                delete D.tmr;
-                if (code !== 0) {
-                  err(`Interpreter ${code != null ? `exited with code ${code}` : `received ${sig}`}`);
-                  D.ide && D.ide.die();
-                }
-              });
-              child.on('error', (y) => {
-                srv && srv.close();
-                srv = 0;
-                clt = 0;
-                child = 0;
-                clearTimeout(D.tmr);
-                delete D.tmr;
-                err(y.code === 'ENOENT' ? 'Cannot find the interpreter\'s executable' : `${y}`);
-                console.error(y);
-              });
+              child.on('exit', onExit);
+              child.on('error', onError);
             });
-            const cancel = (e) => {
-              if (e) {
-                clearTimeout(D.tmr);
-                delete D.tmr;
-              } else {
-                err('Timed out');
-              }
-              srv && srv.close();
-              srv = 0;
-              child && child.kill();
-              child = 0;
-              hideDlgs();
-              return !1;
-            };
             D.tmr = setTimeout(cancel, ct);
             q && (q.connecting_dlg_close.onclick = cancel);
           }
@@ -626,24 +736,62 @@
     return !1;
   };
   global.go = go;
+  const setUpMenu = () => {
+    D.InitHelp();
+    const m = 'Ride'
+    + '\n  About Ride=ABT'
+    + '\n  -'
+    + '\n  Preferences=PRF'
+    + '\n  -'
+    + '\n  &Quit=QIT'
+    + ''
+    + '\n&File'
+    + '\n  New configuration=CNNW'
+    + '\n  Clone configuration=CNCL'
+    + '\n  Delete configuration=CNDL'
+    + '\n  -'
+    + '\n  Re-create preset configurations=CNCP'
+    + '\n&Edit'
+    + '\n  Undo=UND'
+    + '\n  Redo=RDO'
+    + '\n  -'
+    + '\n  Cut=CT'
+    + '\n  Copy=CP'
+    + '\n  Paste=PT'
+    + '\n  Select All=SA'
+    + '\n&Help'
+    + '\n  Getting &Started         =https://dyalog.com/introduction.htm'
+    + '\n  -'
+    + '\n  &Ride User Guide         =RHP'
+    + '\n  Dyalog &Help             =DHI'
+    + '\n  &Language Elements       =LEL'
+    + '\n  &Documentation Centre    =DOX'
+    + '\n  -'
+    + '\n  Dyalog &Website          =https://dyalog.com/'
+    + '\n  &Email Dyalog            =EMD'
+    + '\n  -'
+    + '\n  Read &Me                 =RME'
+    + '\n  &Third Party Licences    =TPL';
+    D.installMenu(D.parseMenuDSL(m));
+  };
   D.cn = () => { // set up Connect page
     q = J.cn;
     I.cn.hidden = 0;
-    $(I.cn).splitter();
-    const m = 'Dyalog\n  About Dyalog=ABT\n  -\n  Preferences=PRF\n  -\n  &Quit=QIT'
-      + '\n&Edit\n  Undo=UND\n  Redo=RDO\n  -\n  Cut=CT\n  Copy=CP\n  Paste=PT\n  Select All=SA';
-    setTimeout(() => D.installMenu(D.parseMenuDSL(m)), 100);
+    const winstate = D.el.getGlobal('winstate');
+    $(I.cn).splitter().on('splitter-resize', () => {
+      winstate.launchWin.width = q.lhs.offsetWidth;
+    });
+    setTimeout(setUpMenu, 100);
+    D.conns = [];
     if (fs.existsSync(cnFile)) {
-      D.conns = JSON.parse(fs.readFileSync(cnFile).toString());
+      D.conns.push(...JSON.parse(fs.readFileSync(cnFile).toString()));
       D.conns_modified = +fs.statSync(cnFile).mtime;
     }
-    if (fs.existsSync(lcnFile)) {
-      D.conns = [
-        JSON.parse(fs.readFileSync(lcnFile).toString()),
-        ...(D.conns || []),
-      ];
-    }
-    D.conns = D.conns || [{ type: 'connect' }];
+    getLocalInterpreters();
+    const hasCreated = createPresets();
+    if (!D.conns.length) D.conns.push({ type: 'connect' });
+    D.conns.forEach((x) => { q.favs.appendChild(favDOM(x)); });
+    if (hasCreated) save();
     I.cn.onkeyup = (x) => {
       const k = D.util.fmtKey(x);
       if (D.el && k === 'F12') {
@@ -699,6 +847,11 @@
           interpretersSSH = [];
           sm.on('data', (x) => { s += x; })
             .on('close', () => {
+              if (pathNotFound.test(s)) {
+                err('Remote connections to Windows hosts is not supported', 'Windows host');
+                c.end();
+                return;
+              }
               interpretersSSH = s.split(/\r?\n/).filter((x) => x).map((x) => {
                 const a = x.split('/');
                 return a[1] === 'opt' ? {
@@ -715,6 +868,7 @@
                   opt: '',
                 };
               });
+              formatInterpreters(interpretersSSH);
               updExes();
               if (sel) {
                 sel.exe = q.exe.value;
@@ -821,29 +975,39 @@
     //   q.ssh_key_dots.hidden = !k;
     //   sel.ssh_auth_type = q.ssh_auth_type.value;
     // };
-    D.conns.forEach((x) => { q.favs.appendChild(favDOM(x)); });
+    const toggleConfig = (show) => {
+      const expanded = (show === undefined) ? !$(q.rhs).is(':visible') : !!show;
+      const { height } = D.elw.getContentBounds();
+      const newWidth = expanded ? winstate.launchWin.expandedWidth : winstate.launchWin.width;
+      winstate.launchWin.expanded = expanded;
+      const minwidth = winstate.dx + (expanded ? 885 : 400);
+      D.elw.setMinimumSize(minwidth, 400);
+      D.elw.setContentSize(newWidth, height);
+      setTimeout(() => { I.cn.toggleMaximize(expanded ? winstate.launchWin.width : 0); }, 10);
+      nodeRequire('electron').ipcRenderer.send('save-win', true);
+    };
+    toggleConfig(winstate.launchWin.expanded);
     $(q.favs).list().sortable({
       cursor: 'move',
       revert: true,
       axis: 'y',
-      // stop: save,
+      stop: save,
     })
-      .on('click', '.go', (e) => {
-        const t = $(e.target);
+      .on('click', '.go, .cog', (e) => {
+        const t = $(e.currentTarget);
         const i = t.parentsUntil(q.favs).last().index();
         $(q.favs).list('select', i);
-        q.go.click();
+        t.hasClass('go') ? q.go.click() : toggleConfig();
       })
-      .keydown((x) => {
+      .on('keydown', (x) => {
         switch (D.util.fmtKey(x)) {
-          case 'Enter': q.go.hidden || q.go.click(); return !1;
           case 'Ctrl-N': q.neu.click(); return !1;
           case 'Delete': q.del.click(); return !1;
           case 'Ctrl-D': q.cln.click(); return !1;
           default: return !0;
         }
       })
-      // .on('list-order-changed', save)
+      .on('list-order-changed', save)
       .on('list-selection-changed', () => {
         $sel = $('.list_sel', q.favs);
         const u = $sel.length === 1; // is selection unique?
@@ -853,9 +1017,11 @@
         sel = u ? $sel[0].cnData : null;
         if (u) {
           $(':checkbox[name]', q.rhs).each((_, x) => { x.checked = !!+sel[x.name]; });
+          q.type_dtl.hidden = sel.preset;
+          q.exes_dtl.hidden = sel.preset;
           q.type.value = sel.type || 'connect';
           q.subtype.value = sel.subtype || 'raw';
-          interpretersSSH = sel.exes || [];
+          interpretersSSH = Array.isArray(sel.exes) ? sel.exes : [];
           updFormDtl();
           updExes();
           q.fav_name.value = sel.name || '';
@@ -870,7 +1036,6 @@
           q.log_cb.checked = !nol;
           q.log.disabled = !sel.log;
           q.log_dots.disabled = !sel.log;
-          
           q.cert_cb.checked = !!sel.cert;
           const noc = !sel.cert;
           q.cert.disabled = noc;
@@ -887,23 +1052,31 @@
         }
       });
     { const [a] = q.favs.querySelectorAll('a'); a && a.focus(); }
-    q.sve.onclick = () => { save(); };
-    q.neu.onclick = () => {
+    D.configNew = () => {
+      if ($(q.rhs).is(':hidden')) {
+        toggleConfig();
+      }
       const $e = $(favDOM({}));
       q.favs.appendChild($e[0]);
       $(q.favs).list('select', $e.index());
       q.fav_name.focus();
     };
-    q.cln.onclick = () => {
+    q.neu.onclick = D.configNew;
+    D.configClone = () => {
       if (sel) {
-        $(favDOM($.extend({}, sel))).insertBefore($sel);
-        $('a', $sel).focus();
-        q.fav_name.value += '(copy)';
-        $(q.fav_name).change();
+        const cnf = favDOM({
+          ...sel,
+          name: `${sel.name} (copy)`,
+          preset: false,
+        });
+        sel.preset ? q.favs.appendChild(cnf) : q.favs.insertBefore(cnf, $sel[0]);
+        save();
+        $(q.favs).list('select', $(cnf).index());
         q.fav_name.focus();
       }
     };
-    q.del.onclick = () => {
+    q.cln.onclick = D.configClone;
+    D.configDelete = () => {
       const n = $sel.length;
       n && $.confirm(
         `Are you sure you want to delete\nthe selected configuration${n > 1 ? 's' : ''}?`,
@@ -912,11 +1085,15 @@
           if (x) {
             const i = Math.min($sel.eq(0).index(), q.favs.children.length - 1);
             $sel.remove();
+            const connsInd = D.conns.indexOf($sel[0].cnData);
+            if (connsInd >= 0) D.conns.splice(connsInd, 1);
+            save();
             $(q.favs).list('select', i);
           }
         },
       );
     };
+    q.del.onclick = D.configDelete;
     q.go.onclick = () => { go(); return !1; };
     const a = q.rhs.querySelectorAll('input,textarea');
     for (let i = 0; i < a.length; i++) if (/^text(area)?$/.test(a[i].type)) D.util.elastic(a[i]);
@@ -925,83 +1102,18 @@
       const k = t.name;
       const v = t.value;
       v ? (sel[k] = v) : delete sel[k];
+      save();
     });
     $(':checkbox[name]', q.rhs).change((e) => {
       const t = e.target;
       t.checked ? (sel[t.name] = 1) : delete sel[t.name];
+      save();
     });
-    // collect information about installed interpreters
-    try {
-      if (/^win/.test(process.platform)) {
-        const s = cp.execSync(
-          'reg query "HKEY_CURRENT_USER\\Software\\Dyalog" /s /v localdyalogdir',
-          { timeout: 4000, encoding: 'UTF8' },
-        );
-        let b; // b:bits
-        let v; // v:version
-        let u; // u:edition
-        let n; // n:match object
-        s && s.split('\r\n').forEach((x) => {
-          if (x) {
-            if ((n = /^HK.*\\Dyalog APL\/W(-64)? (\d+\.\d+)( Unicode)?$/i.exec(x))) {
-              [, b, v, u] = n;
-              b = b ? 64 : 32;
-              u = u ? 'unicode' : 'classic';
-            } else if (v && (n = /^ *localdyalogdir +REG_SZ +(\S.*)$/i.exec(x))) {
-              interpreters.push({
-                exe: `${n[1]}\\dyalog.exe`,
-                ver: parseVer(v),
-                bits: b,
-                edition: u,
-                opt: '',
-              });
-            } else if (!/^\s*$/.test(x)) {
-              b = null;
-              v = null;
-              u = null;
-            }
-          }
-        });
-      } else if (process.platform === 'darwin') {
-        const rd = '/Applications';
-        ls(rd).forEach((x) => {
-          const n = /^Dyalog-(\d+\.\d+)\.app$/.exec(x);
-          const exe = `${rd}/${x}/Contents/Resources/Dyalog/mapl`;
-          n && fs.existsSync(exe) && interpreters.push({
-            exe,
-            ver: parseVer(n[1]),
-            bits: 64,
-            edition: 'unicode',
-            opt: '',
-          });
-        });
-      } else {
-        const rd = '/opt/mdyalog';
-        const sil = (g) => (x) => { try { g(x); } catch (_) { /* exception silencer */ } };
-        ls(rd).forEach(sil((v) => {
-          if (/^\d+\.\d+/.test(v)) {
-            ls(`${rd}/${v}`).forEach(sil((b) => {
-              if (b === '32' || b === '64') {
-                ls(`${rd}/${v}/${b}`).forEach(sil((u) => {
-                  if (u === 'unicode' || u === 'classic') {
-                    const exe = `${rd}/${v}/${b}/${u}/mapl`;
-                    fs.existsSync(exe) && interpreters.push({
-                      exe,
-                      ver: parseVer(v),
-                      bits: +b,
-                      edition: u,
-                      opt: '',
-                    });
-                  }
-                }));
-              }
-            }));
-          }
-        }));
-      }
-    } catch (e) { console.error(e); }
+    $('select[name]', q.rhs).change(() => {
+      save();
+    });
     updExes();
-    document.title = 'RIDE-Dyalog Session';
+    document.title = 'New Session - Ride';
     const conf = D.el.process.env.RIDE_CONF;
     if (conf) {
       const i = [...q.favs.children].findIndex((x) => x.cnData.name === conf);
@@ -1014,9 +1126,28 @@
         return;
       }
     }
-    setTimeout(() => $(q.favs).list('select', 0), 1);
+    const autoStart = process.env.RIDE_AUTO_START ? process.env.RIDE_AUTO_START === '1' : D.prf.autoStart();
+    let i = 0;
+    if (!autoStart) {
+      const defcfg = D.prf.defaultConfig();
+      i = [...q.favs.children].findIndex((x) => x.cnData.name === defcfg);
+      if (i < 0) i = 0;
+    }
+    setTimeout(() => {
+      $(q.favs).list('select', i);
+      if (autoStart) q.go.click();
+    }, 1);
   };
-
+  D.recreatePresets = () => {
+    D.prf.presetsCreated([]);
+    const hasCreated = createPresets();
+    if (!hasCreated) return;
+    const favItems = [...q.favs.children].map((x) => x.cnData);
+    D.conns.forEach((x) => {
+      if (!favItems.includes(x)) q.favs.appendChild(favDOM(x));
+    });
+    save();
+  };
   module.exports = () => {
     D.send = (x, y) => {
       if (D.ide && !D.ide.promptType
@@ -1050,14 +1181,14 @@
       const m = HP.exec(h.l); // parse host and port
       m ? go({
         type: 'listen',
-        host: m[1], 
-        port: +m[2] || 4502, 
+        host: m[1],
+        port: +m[2] || 4502,
         respawn: !!m[3],
         log: h.log,
       }) : $.err('Invalid $RIDE_LISTEN');
     } else if (h.s) {
       const cnf = {
-        type: 'start', 
+        type: 'start',
         exe: h.s,
         log: h.log,
       };

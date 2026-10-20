@@ -1,0 +1,57 @@
+site_name: Ride User Guide
+repo_url: https://github.com/dyalog/ride
+nav:
+  - index.md
+  - introduction.md
+  - installation.md
+  - "Starting a Session": starting_a_dyalog_session.md
+  - ride_in_the_browser.md
+  - the_dyalog_development_environment.md
+  - input_windows.md
+  - working_in_a_dyalog_session.md
+  - ridespecific_language_features.md
+  - customising_your_session.md
+  - keyboard_shortcuts.md
+  - "Sample Configuration File": sample_configuration_file.md
+
+theme:
+  favicon: 'img/favicon-32.png'
+  logo: 'img/dyalog-white.svg'
+  features:
+    - navigation.sections
+    - navigation.instant
+  name: material
+
+extra_css:
+  - style/main.css
+  - style/admonition-ucmdhelp.css
+
+markdown_extensions:
+  - admonition
+  - abbr
+
+extra:
+  version:
+    provider: mike
+
+plugins:
+  - search
+  - print-site:
+      add_to_navigation: true
+      print_page_title: 'Print Site'
+      add_print_site_banner: false
+      # Table of contents
+      add_table_of_contents: true
+      toc_title: 'Table of Contents'
+      toc_depth: 6
+      # Content-related
+      add_full_urls: true
+      enumerate_headings: true
+      enumerate_figures: true
+      add_cover_page: true
+      cover_page_template: ""
+      path_to_pdf: ""
+      include_css: true
+      enabled: true
+      exclude:
+

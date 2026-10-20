@@ -146,9 +146,9 @@ createDEB() {
 		-C ${SBOXDIR}				\
 		-d 'libc6 >= 2.17'			\
 		-d 'libnss3 >= 3.26'			\
+		-d 'libgbm1'				\
 		-d 'libgtk-3-0'				\
 		-d 'libxss1'				\
-		-d 'libgconf-2-4'			\
 		-d 'libasound2'				\
 		-d 'libx11-xcb1'			\
 		--license "MIT"			\
@@ -187,8 +187,8 @@ createRPM() {
 		-C ${SBOXDIR}				\
 		-d 'libc.so.6(GLIBC_2.17)(64bit)'	\
 		-d 'libXss.so.1()(64bit)'		\
+		-d 'libgbm.so.1()(64bit)'		\
 		-d 'libgtk-3.so.0()(64bit)'		\
-		-d 'libgconf-2.so.4()(64bit)'		\
 		-d 'libasound.so.2()(64bit)'		\
 		-d 'libnss3.so()(64bit)'		\
 		-d 'libX11-xcb.so.1()(64bit)'		\
@@ -220,17 +220,24 @@ cleanup() {
 
 }
 
-for CPUTYPE in x64 armv7l ; do
+for CPUTYPE in x64 armv7l arm64 ; do
 
 	RIDEDIR="_/${BUILDNAME}/${APP_NAME}-linux-${CPUTYPE}"
 
-	if [ "${CPUTYPE}" = "x64" ] ; then
-		DEBCPUTYPE="amd64"
-		RPMCPUTYPE="x86_64"
-	elif [ "${CPUTYPE}" = "armv7l" ] ; then
-		DEBCPUTYPE="armhf"
-		RPMCPUTYPE="armhf"
-	fi
+	case ${CPUTYPE} in
+		"x64")
+			DEBCPUTYPE="amd64"
+			RPMCPUTYPE="x86_64"
+			;;
+		"armv7l")
+			DEBCPUTYPE="armhf"
+			RPMCPUTYPE="armhf"
+			;;
+		"arm64")
+			DEBCPUTYPE="aarch64"
+			RPMCPUTYPE="aarch64"
+			;;
+	esac
 
 	checkEnvironment
 	getVersionInfo
@@ -242,6 +249,7 @@ for CPUTYPE in x64 armv7l ; do
 	#find "${SBOXDIR}" -name ".git*" | xargs rm -r # for lintian
 	find "${SBOXDIR}" -type f "(" -name ".*" -o -name "*.c" ")" | xargs rm # for rpmlint
 	find "${SBOXDIR}" -xtype l | xargs rm -f # remove dangling symlinks, for rpmlint
+	chmod 4755 ${SBOXDIR}/opt/ride-${BASE_VERSION}/chrome-sandbox
 
 	mkdir -p ${SBOXDIR}/usr/share/icons/hicolor/scalable/apps
 	cp "$ICON" ${SBOXDIR}/usr/share/icons/hicolor/scalable/apps/ride${BASE_VERSION_ND}.svg

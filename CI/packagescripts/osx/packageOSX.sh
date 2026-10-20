@@ -1,5 +1,4 @@
 #!/bin/bash
-source "$(dirname "$0")/notarise.sh"
 set -x -e -o pipefail
 
 # The following variables must be set prior to invoking this script
@@ -35,7 +34,14 @@ APPLE_CERT_INSTALLER="Developer ID Installer: Dyalog Limited (6LKE87V3BD)"
 
 PackageName=$(node -e "console.log($(cat package.json).productName)") # "Ride-4.0" or similar
 BUILDNAME=$(node -e "console.log($(cat package.json).name)") # "ride40" or similar
-RIDEDIR="_/${BUILDNAME}/${PackageName}-darwin-x64"
+
+if [ "arm64" = "$(uname -m)" ]; then
+        R_ARCH=arm64
+else
+        R_ARCH=x64
+fi
+
+RIDEDIR="_/${BUILDNAME}/${PackageName}-darwin-${R_ARCH}"
 SHIPDIRECTORY=ship
 
 mkdir -p ${RIDEDIR}/${PackageName}.app/Contents/Resources/LICENCES
@@ -61,15 +67,9 @@ cd ${BUILDROOTDIR}
 
 mkdir -p ${SHIPDIRECTORY}
 
-ARCHIVENAME=`echo "${SHIPDIRECTORY}/${APPNAME}.${REVISION_VERSION}_mac.pkg" | tr '[:upper:]' '[:lower:]'`
+ARCHIVENAME=`echo "${SHIPDIRECTORY}/${APPNAME}.${REVISION_VERSION}_mac_${R_ARCH}.pkg" | tr '[:upper:]' '[:lower:]'`
 
-./node_modules/electron-osx-sign/bin/electron-osx-sign.js ${RIDEDIR}/${PackageName}.app \
---identity="${APPLE_CERT_APPLICATION}" \
---entitlements="CI/packagescripts/osx/entitlements.plist" \
---entitlements-inherit="CI/packagescripts/osx/entitlements.plist" \
---hardened-runtime \
---no-gatekeeper-assess \
---no-strict-verify
+./CI/packagescripts/osx/sign.js ${RIDEDIR}/${PackageName}.app "${APPLE_CERT_APPLICATION}"
 
 /usr/bin/pkgbuild --root "$RIDEDIR"                   \
 --identifier "$identifier"                            \
@@ -78,11 +78,5 @@ ARCHIVENAME=`echo "${SHIPDIRECTORY}/${APPNAME}.${REVISION_VERSION}_mac.pkg" | tr
 --sign "$APPLE_CERT_INSTALLER"                        \
 "$ARCHIVENAME"
 
-# upload for notarization
-notarizefile "$ARCHIVENAME" "$identifier" 
-
-# staple result
-echo "## Stapling $ARCHIVENAME"
-/usr/bin/xcrun stapler staple "$ARCHIVENAME"
 
 echo '## Done!'

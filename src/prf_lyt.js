@@ -38,6 +38,10 @@
     name: 'Keyboard',
     init() {
       q = J.lyt;
+      q.prnt.onclick = () => {
+        q.pfx.blur();
+        D.el.getCurrentWindow().webContents.print({ printBackground: true });
+      };
       q.lc.innerHTML = `<option>${Object.keys(layouts).sort().join('<option>')}`;
       const inputs = q.kbd.querySelectorAll('input');
       const onBlurInput = (x) => {
@@ -93,7 +97,7 @@
       });
       updGlyphs();
       // "IME" is the key mapper in Windows;
-      // there's a checkbox to enable Dyalog's keymap when RIDE starts
+      // there's a checkbox to enable Dyalog's keymap when Ride starts
       // That's done in prf.js which spawns an external process - see also ../windows-ime/readme
       if (D.win) q.ime.checked = !!D.prf.ime();
     },
@@ -101,10 +105,6 @@
     validate() {
       if (q.pfx.value.length !== 1) return { msg: 'Invalid prefix key', el: q.pfx };
       return null;
-    },
-    print() {
-      q.pfx.blur();
-      D.el.getCurrentWindow().webContents.print({ printBackground: true });
     },
     save() {
       D.prf.prefixKey(q.pfx.value);

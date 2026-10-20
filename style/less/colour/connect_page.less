@@ -1,12 +1,12 @@
 #cn {
   input:not([type=button]):not([type=file]):not([type=submit]):not([type=checkbox]),textarea{
     border: 1px solid @CN_INPUT_BORDER_COL;
-    background-color: 	@CN_INPUT_BG;
-		color:@CN_INPUT_FG;
+    background-color: @CN_INPUT_BG;
+	  color:@CN_INPUT_FG;
     &:disabled{
       background-color:	@CN_INPUT_DIS_BG;
-			border-color:	@CN_INPUT_BORDER_COL;
-			color:@CN_INPUT_DIS_FG;
+      border-color:	@CN_INPUT_BORDER_COL;
+			color: @CN_INPUT_DIS_FG;
 			&::-webkit-input-placeholder {
 				color: @CN_INPUT_DIS_FG;
 			}
@@ -31,13 +31,13 @@
 #cn_favs {
 	
 	>div.list_sel{
-		background:@CN_FAV_BTN_BG;
-		color: @CN_FAV_BTN_FG;
+		background:@CN_FAV_BTN_SEL_BG;
+		color: @CN_FAV_BTN_SEL_FG;
 		opacity:1;
-		.go {
-			color:@CN_FAV_BTN_FG;
-			&:hover{
-				color:@BUTTON_HOVER_COL;
+		.go, .cog {
+			color:@CN_FAV_BTN_SEL_FG!important;
+			&:hover, &:focus{
+				color:@BUTTON_HOVER_COL!important;
 			}
 		}
 	}
@@ -45,18 +45,19 @@
 		outline: dotted black 1px;
 	}
 	>div{
-		background:@CN_FAV_BTN_UNSEL_BG;
-		color:@CN_FAV_BTN_UNSEL_FG;
+		border: 1px solid @DLG_BOTTOM_BG;
+		background:@CN_FAV_BTN_BG;
+		color:@CN_FAV_BTN_FG;
+		&:not(:hover):not(:focus):not(.list_sel) .tb_btn {
+			visibility: hidden;
+	    }
 	}
 }
-#cn_fav_btns {
-  background:linear-gradient(@CN_RHS_BG, @CN_RHS_BG2);
-}
-#cn_lhs {
-	background: @CN_LHS_BG;
-}
-#cn, #cn_rhs {
-	background: linear-gradient(@CN_RHS_BG, @CN_RHS_BG2);
+#cn, #cn_lhs, #cn_rhs {
+	background-color: @CN_BG;
+	select{
+    background-color: @CN_INPUT_BG;
+  }
 }
 #cn_env_add {
 	color: @CN_LABEL_COL;
@@ -74,4 +75,8 @@
 		font-size: 16px;
 		font-family: monospace;
 	}
+}
+.cn_head {
+	background-color: @DLG_BOTTOM_BG;
+	color: @CN_INPUT_FG;
 }

@@ -1,6 +1,6 @@
-# RIDE
+# Ride
 
-RIDE is a remote IDE for [Dyalog](www.dyalog.com) APL.
+Ride is a cross-platform IDE for [Dyalog](https://www.dyalog.com) APL. It also allows remote access. See the [full documentation](https://dyalog.github.io/ride).
 
 ![Screenshot](/screenshot.png?raw=true)
 
@@ -10,15 +10,36 @@ RIDE is a remote IDE for [Dyalog](www.dyalog.com) APL.
 [latest release](https://github.com/Dyalog/ride/releases/latest) from this
 repository.
 
-**Option 2:** Build RIDE from source:
+**Option 2:** Build Ride from source:
 
-install [Git](https://git-scm.com/downloads) and [NodeJS v16.17.1](https://nodejs.org/download/release/v16.17.1/)
+Install [Git](https://git-scm.com/downloads) and [NodeJS v18.17.0](https://nodejs.org/download/release/v18.17.0/)
 
     git clone https://github.com/dyalog/ride --depth=1
     cd ride
-    npm i         # download dependencies
-    npm start     # start RIDE (without building native apps)
-    node mk dist  # build native apps under _/ride${version}/
-    node mk c     # cleans your build directory
+    npm i              # download dependencies
+    npm run css        # compile css
+    npm run dev        # compile css and start Ride
+    npm start          # start Ride (without building native apps)
+    npm run build dist # compile css and build native apps under _/ride${version}/
+    npm run clean      # cleans your build directory
+
+`npm run build dist` builds for all platforms. 
+
+You can also build platforms separately:
+
+    npm run build {CODE}
+
+where `{CODE}` is one of
+
+|CODE|OS       |ARCH  |
+|----|---------|------|
+|w   | win32   |ia32  |
+|l   | linux   |x64   |
+|o   | darwin  |x64   |
+|oa  | darwin  |arm64 |
+|m   | mas     |x64   |
+|ma  | mas     |arm64 |
+|a   | linux   |armv7l|
+
 
 (`#` starts a comment)

@@ -30,6 +30,10 @@
 	float: right;
 	margin-right: 8px;
 }
+#shc_prnt {
+	float: right;
+  margin: 0 7px;
+}
 .shc_code {
 	padding: 2px 16px 2px 8px;
 }
@@ -74,6 +78,15 @@
 	margin: 8px 2px;
 	line-height: 24px;
 	white-space: nowrap;
+	padding: 3px 0;
+	.shc_key_btn {
+		border-radius: 3px;
+		display: inline;
+		margin: 2px;
+		padding: 2px 4px;
+		white-space: nowrap;
+	}
+	
 }
 .shc_text {
 	border-top-right-radius: 0;
@@ -100,6 +113,10 @@
     position: initial;
     overflow: unset;
   }
+  #shc_tbl_wr tr td .shc_text .shc_key_btn {
+    color: black;
+    background-color: white;
+  }
   #shc_ctrls {
     display: none;
   }
@@ -111,4 +128,7 @@
       display: none;
     }
   }
+  .shc_val::placeholder {
+    color: transparent;
+  } 
 }

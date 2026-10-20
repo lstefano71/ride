@@ -3,38 +3,36 @@
   const name1 = RegExp(`[${D.syntax.letter}\\d]*`);
   const notName = RegExp(`[^${D.syntax.letter}\\d]+`);
 
-  D.wordSeparators = `${D.informal.slice(0, -26).map(x => x[0]).join('').replace(/[⎕∆⍙]/g, '')}()[]{}%£#;:'"\`$^`;
+  D.wordSeparators = `${D.informal.slice(0, -26).map((x) => x[0]).join('').replace(/[⎕∆⍙]/g, '')}()[]{}%£#;:'"\`$^`;
 
-  function aplConfig() {
-    return {
-      comments: {
-        lineComment: '⍝',
-      },
-      brackets: [
-        ['{', '}'],
-        ['[', ']'],
-        ['(', ')'],
-      ],
-      autoClosingPairs: [
-        { open: '{', close: '}' },
-        { open: '[', close: ']' },
-        { open: '(', close: ')' },
-      ],
-      surroundingPairs: [
-        { open: '{', close: '}' },
-        { open: '[', close: ']' },
-        { open: '(', close: ')' },
-        { open: '"', close: '"' },
-        { open: '\'', close: '\'' },
-      ],
-      indentationRules: {
-        decreaseIndentPattern: RegExp(`^((?!.*?⍝).*)?\\s*(${D.syntax.endBlock})\\b.*$`, 'i'),
-        increaseIndentPattern: RegExp(`^(?:(?!⍝).)*(${D.syntax.startBlock})\\b.*$`, 'i'),
-        unIndentedLinePattern: /^\s*⍝.*$/,
-      },
-      wordPattern: RegExp(D.syntax.name),
-    };
-  };
+  const aplConfig = () => ({
+    comments: {
+      lineComment: '⍝',
+    },
+    brackets: [
+      ['{', '}'],
+      ['[', ']'],
+      ['(', ')'],
+    ],
+    autoClosingPairs: [
+      { open: '{', close: '}' },
+      { open: '[', close: ']' },
+      { open: '(', close: ')' },
+    ],
+    surroundingPairs: [
+      { open: '{', close: '}' },
+      { open: '[', close: ']' },
+      { open: '(', close: ')' },
+      { open: '"', close: '"' },
+      { open: '\'', close: '\'' },
+    ],
+    indentationRules: {
+      decreaseIndentPattern: RegExp(`^((?!.*?⍝).*)?\\s*(${D.syntax.endBlock})\\b.*$`, 'i'),
+      increaseIndentPattern: RegExp(`^(?:(?!⍝).)*(${D.syntax.startBlock})\\b.*$`, 'i'),
+      unIndentedLinePattern: /^\s*⍝.*$/,
+    },
+    wordPattern: RegExp(D.syntax.name),
+  });
 
   const aplSessionConfig = {
     comments: {
@@ -100,32 +98,32 @@
   }
 
   class SessionState {
-    // l:line number, .s:start of line ignoring whitespace, .h:inner state
-
-    constructor(l, s, h) {
-      this.l = l;
-      this.s = s;
-      this.h = h.clone();
+    constructor(l, o, s, h) {
+      this.l = l; // line number
+      this.o = o; // offset inserted lines
+      this.s = s; // start of line ignoring whitespace
+      this.h = h.clone(); // inner state
     }
 
     clone() {
-      return new SessionState(this.l, this.s, this.h);
+      return new SessionState(this.l, this.o, this.s, this.h);
     }
 
     equals(other) {
       if (other === this) return true;
       if (!other || !(other instanceof SessionState)) return false;
       if (this.l !== other.l) return false;
+      if (this.o !== other.o) return false;
       if (this.s !== other.s) return false;
       if (!this.h.equals(other.h)) return false;
       return true;
     }
   }
 
-  function dfnDepth(a) {
+  const dfnDepth = (a) => {
     let r = 0;
     for (let j = 0; j < a.length; j++) if (a[j].t === '{') r += 1; return r;
-  }
+  };
 
   const sw = 4; // default indent unit (vim calls that "sw" for "shift width")
   const swm = 2; // indent unit for methods
@@ -201,6 +199,7 @@
         let m;
         let c;
         let dd;
+        let isAplan;
         if (h.hdr) {
           h.hdr = 0;
           m = sm.match(/[^⍝\n\r]*/);
@@ -269,7 +268,7 @@
         } else if (sm[0]) {
           [c] = sm;
           switch (c) {
-            case ' ':
+            case ' ': case '\t': case '\r': case '\n':
               m = sm.match(/^[ \t\r\n]+/);
               addToken(offset, 'white');
               offset += m[0].length; break;
@@ -280,14 +279,14 @@
 
             case '⋄':
               delete h.kw;
-              tkn = la.t !== '(' && la.t !== '[' ? 'delimiter.diamond' : 'invalid';
+              tkn = 'delimiter.diamond';
+              tkn = la.isAplan ? 'delimiter.aplan' : 'delimiter.diamond';
               addToken(offset, tkn); offset += 1; break;
 
             case '←': addToken(offset, 'keyword.operator.assignment'); offset += 1; break;
 
             case "'":
-              if (sm.match(/^'(?:[^'\r\n]|'')*'/)) {
-                m = sm.match(/^'(?:[^'\r\n]|'')*'/);
+              if ((m = sm.match(/^'(?:[^'\r\n]|'')*'/))) {
                 addToken(offset, 'string');
                 offset += m[0].length;
               } else {
@@ -300,23 +299,27 @@
 
             case '(':
               h.rseq += 1;
+              isAplan = /^\(\s*(?:(?=.*⋄).*|(?:[A-Z_a-zÀ-ÖØ-Ýß-öø-üþ∆⍙Ⓐ-Ⓩ][A-Z_a-zÀ-ÖØ-Ýß-öø-üþ∆⍙Ⓐ-Ⓩ\d]*:.*)|\s*\)?|[^)]*)\s*$/.test(sm);
               a.push({
                 t: c,
                 oi: la.oi,
                 ii: la.ii,
                 r: h.rseq,
+                isAplan,
               });
-              addToken(offset, 'delimiter.parenthesis'); offset += 1; break;
+              addToken(offset, isAplan ? 'delimiter.aplan' : 'delimiter.parenthesis'); offset += 1; break;
 
             case '[':
               h.rseq += 1;
+              isAplan = /^\[\s*(?:(?=.*⋄).*|[^\]]*)\s*$/.test(sm);
               a.push({
                 t: c,
                 oi: la.oi,
                 ii: la.ii,
                 r: h.rseq,
+                isAplan,
               });
-              addToken(offset, 'delimiter.square'); offset += 1; break;
+              addToken(offset, isAplan ? 'delimiter.aplan' : 'delimiter.square'); offset += 1; break;
 
             case '{':
               h.rseq += 1;
@@ -332,7 +335,7 @@
             case ')':
               if (la.t === '(') {
                 a.pop();
-                addToken(offset, 'delimiter.parenthesis');
+                addToken(offset, la.isAplan ? 'delimiter.aplan' : 'delimiter.parenthesis');
               } else {
                 addToken(offset, 'invalid.parenthesis');
               }
@@ -341,7 +344,7 @@
             case ']':
               if (la.t === '[') {
                 a.pop();
-                addToken(offset, 'delimiter.square');
+                addToken(offset, la.isAplan ? 'delimiter.aplan' : 'delimiter.square');
               } else {
                 addToken(offset, 'invalid.square');
               }
@@ -501,12 +504,15 @@
             default:
               if (name0.test(c)) {
                 m = sm.match(name1);
-                // var x=sm.current(),dd=dfnDepth(a)
                 let [x] = m;
                 dd = dfnDepth(a);
-                if (!dd && sm[x.length] === ':') {
-                  addToken(offset, 'meta.label');
-                  offset += 1;
+                if (!dd && /^\s*:(?!in)/i.test(sm.slice(x.length))) {
+                  if (la.isAplan) {
+                    addToken(offset, 'identifier.local.aplan');
+                  } else {
+                    offset += sm.slice(x.length).match(/^\s*:/)[0].length;
+                    addToken(offset, 'meta.label');
+                  }
                 } else if (dd || (h.vars && h.vars.includes(x))) {
                   [x] = sm.match(RegExp(`(${D.syntax.name}\\.?)+`));
                   addToken(offset, 'identifier.local');
@@ -514,17 +520,17 @@
                   addToken(offset, 'identifier.global');
                 }
                 offset += x.length;
-              } else if ((m = sm.match(/^[+\-×÷⌈⌊|⍳⍸?*⍟○!⌹<≤=≥>≠≡≢∊⍷∪∩~∧∨⍲⍱⍴,⍪⌽⊖⍉↑↓⊆⊂⊃⌷⍋⍒⊤⊥⍕⍎⊣⊢→]+/))) {
+              } else if ((m = sm.match(/^[+\-×÷⌈⌊|⍳⍸?*⍟○!⌹<≤=≥>≠≡≢∊⍷∪∩~∧∨⍲⍱⍴,⍪⌽⊖⍉↑↓⊆⊂⊃⌷⍋⍒⊤⊥⍕⍎⊣⊢→^∣]+/))) {
                 addToken(offset, 'keyword.function');
                 offset += m[0].length;
               } else if ((m = sm.match(/^[/\\⌿⍀¨⍨⌸⌶&]+/))) {
                 addToken(offset, 'keyword.operator.monadic');
                 offset += m[0].length;
-              } else if ((m = sm.match(/^[.∘⍤⍥⍣⍠@⌺]+/))) {
+              } else if ((m = sm.match(/^[.∘⍛⍤⍥⍣⍠@⌺]+/))) {
                 addToken(offset, 'keyword.operator.dyadic');
                 offset += m[0].length;
               } else {
-                addToken(offset, 'invalid');
+                addToken(offset, 'invalid.token');
                 offset += 1;
               }
           }
@@ -538,8 +544,15 @@
     },
   };
 
+  const aplanTokens = {
+    getInitialState: () => new State(0, [{
+      t: '', oi: 0, ii: 0, r: 0,
+    }], [], 0),
+    tokenize: aplTokens.tokenize,
+  };
+
   const aplSessionTokens = {
-    getInitialState: () => new SessionState(0, 1, aplTokens.getInitialState()),
+    getInitialState: () => new SessionState(0, 0, 1, aplTokens.getInitialState()),
     tokenize: (line, state) => {
       const se = D.wins && D.wins[0];
       const lt = {
@@ -560,8 +573,14 @@
       // const sol = offset === 0;
       const eol = line.length;
       const h = lt.endState;
+      h.o += se.dirty[h.l] === 0;
       let m; // m:regex match object
-      if (!se.lineEditor[h.l + 1] && se.dirty[h.l + 1] == null) {
+      if (se.promptType === 4 // skip tokenization if quote quad input
+        || (se.dirty[h.l + 1] == null // or if line modified
+          && !( // and not line editor
+            se.lineEditor[h.l - h.o + 1] // support for old interpreters (pre object lines)
+            || [11, 14].includes((se.lines[h.l - h.o] || {}).type) // object lines with type
+          ))) {
         offset = eol;
         h.l += 1;
         return lt;
@@ -576,7 +595,7 @@
         h.l += 1;
         return lt;
       }
-      if (h.s && (m = line.match(/^(\s*)\].*/))) {
+      if (h.s && (m = line.match(/^(\s*)\].*/)) && !h.h.a[h.h.a.length - 1].isAplan) {
         if (m[1]) {
           addToken(offset, 'white');
           offset += m[1].length;
@@ -608,7 +627,7 @@
       const pk2 = `${pk}${pk}`;
       const kind = monaco.languages.CompletionItemKind;
       const insertTextRules = monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet;
-      const { a } = getState(model, l - 1);
+      const { a } = getState(model, l - 1) || {};
       const { t } = (a || []).slice(-1)[0] || {};
       const snippets = /^\s*:\w*$/.test(s.slice(0, c - 1)) && a && t !== '{';
       const sc = model.bqc - 1;
@@ -646,7 +665,7 @@
       }
       if (snippets) {
         const suggestions = [];
-        const textItem = i => ({
+        const textItem = (i) => ({
           label: i,
           insertText: i,
           kind: kind.Snippet,
@@ -675,7 +694,7 @@
         if (t === 'for' || t === 'while' || t === 'repeat') {
           suggestions.push(...['Continue', 'Leave'].map(textItem));
         }
-        if (t === 'class' || t === 'namesapce') {
+        if (t === 'class' || t === 'namespace') {
           suggestions.push(
             {
               label: 'Class',
@@ -710,6 +729,10 @@
               insertTextRules,
               documentation: 'Interface script',
             },
+          );
+        }
+        if (t === 'class' || t === 'interface') {
+          suggestions.push(
             {
               label: 'Property',
               kind: kind.Snippet,
@@ -724,17 +747,6 @@
               ].join('\n'),
               insertTextRules,
               documentation: 'Property declaration',
-            },
-            {
-              label: 'Section',
-              kind: kind.Snippet,
-              insertText: [
-                'Section ${1:name}',
-                '\t$0',
-                ':EndSection',
-              ].join('\n'),
-              insertTextRules,
-              documentation: 'Section block',
             },
           );
         }
@@ -809,6 +821,17 @@
             documentation: 'Repeat loop until',
           },
           {
+            label: 'Section',
+            kind: kind.Snippet,
+            insertText: [
+              'Section ${1:name}',
+              '\t$0',
+              ':EndSection',
+            ].join('\n'),
+            insertTextRules,
+            documentation: 'Section block',
+          },
+          {
             label: 'Select',
             kind: kind.Snippet,
             insertText: [
@@ -862,7 +885,7 @@
         /* eslint-enable no-template-curly-in-string */
         return { suggestions };
       }
-      const word = (((RegExp('⎕?[A-Z_a-zÀ-ÖØ-Ýß-öø-üþ∆⍙Ⓐ-Ⓩ0-9]*$').exec(s.slice(0, c)) || [])[0] || '')); // match left of cursor
+      const word = (((/⎕?[A-Z_a-zÀ-ÖØ-Ýß-öø-üþ∆⍙Ⓐ-Ⓩ0-9]*$/.exec(s.slice(0, c)) || [])[0] || '')); // match left of cursor
       const limit = D.prf.autoCompleteCharacterLimit();
       if (D.send && (l[s] || ' ') === ' '
         && (word.length >= limit || D.prf.autocompletion() === 'shell')) {
@@ -890,7 +913,7 @@
         return {
           range: new monaco.Range(p.lineNumber, p.column - 1, p.lineNumber, p.column),
           contents: [
-            { value: lbt[0] },
+            { value: lbt[0].replace(/\\/g, '\\\\') },
             { value: `\`\`\`plaintext\n${lbt[1]}\n\`\`\`` },
           ],
         };
@@ -946,7 +969,7 @@
             }
           }
           if (token.isCancellationRequested || length === totLength) {
-            openRanges.forEach(r => ranges.push({ ...r, end: totLength }));
+            openRanges.forEach((r) => ranges.push({ ...r, end: totLength }));
             resolve(ranges);
             return;
           }
@@ -967,11 +990,11 @@
         const a = ((getState(model, l - 1) || {}).a || []).slice().reverse();
         const [la, ...ra] = a;
         if (la && (icom || !/^\s*⍝/.test(s))) {
-          let ind = ra.map(r => r.ii).reduce((r, c) => r + c, 0);
+          let ind = ra.map((r) => r.ii).reduce((r, c) => r + c, 0);
           if (dfnDepth(a)) {
             ind += /^\s*\}/.test(s) ? la.oi : la.ii;
           } else if (/^\s*∇/.test(s)) {
-            const ai = a.find(x => x.t === '∇');
+            const ai = a.find((x) => x.t === '∇');
             ind += ai ? ai.oi : la.ii;
           } else if (/^\s*:access/i.test(s)) {
             ind += la.t === 'class' ? la.oi : la.ii;
@@ -1006,8 +1029,13 @@
     const ml = monaco.languages;
     ml.register({
       id: 'apl',
-      extensions: ['.apl', '.apla', '.aplc', '.aplf', '.apli', '.apln', '.aplo',
+      extensions: ['.apl', '.aplc', '.aplf', '.apli', '.apln', '.aplo',
         '.mipage', '.dyapp', 'dyalog'],
+    });
+
+    ml.register({
+      id: 'aplan',
+      extensions: ['.apla'],
     });
 
     ml.setTokensProvider('apl', aplTokens);
@@ -1017,7 +1045,15 @@
     ml.registerDocumentFormattingEditProvider('apl', aplFormat);
     ml.registerDocumentRangeFormattingEditProvider('apl', aplFormat);
     ml.registerOnTypeFormattingEditProvider('apl', aplFormat);
-    
+
+    ml.setTokensProvider('aplan', aplanTokens);
+    ml.setLanguageConfiguration('aplan', aplConfig());
+    ml.registerHoverProvider('aplan', aplHover);
+    ml.registerFoldingRangeProvider('aplan', aplFold);
+    ml.registerDocumentFormattingEditProvider('aplan', aplFormat);
+    ml.registerDocumentRangeFormattingEditProvider('aplan', aplFormat);
+    ml.registerOnTypeFormattingEditProvider('aplan', aplFormat);
+
     ml.register({ id: 'apl-session' });
     ml.setTokensProvider('apl-session', aplSessionTokens);
     ml.setLanguageConfiguration('apl-session', aplSessionConfig);
@@ -1025,15 +1061,16 @@
     ml.registerDocumentFormattingEditProvider('apl-session', aplFormat);
     ml.registerDocumentRangeFormattingEditProvider('apl-session', aplFormat);
     ml.registerOnTypeFormattingEditProvider('apl-session', aplFormat);
-    
+
     const ac = aplCompletions(D.prf.prefixKey());
     acProviders.push(ml.registerCompletionItemProvider('apl', ac));
     acProviders.push(ml.registerCompletionItemProvider('apl-session', ac));
     D.prf.prefixKey((x) => {
+      let p;
       while (p = acProviders.pop()) p.dispose();
-      const ac = aplCompletions(x);
-      acProviders.push(ml.registerCompletionItemProvider('apl', ac));
-      acProviders.push(ml.registerCompletionItemProvider('apl-session', ac));
+      const acs = aplCompletions(x);
+      acProviders.push(ml.registerCompletionItemProvider('apl', acs));
+      acProviders.push(ml.registerCompletionItemProvider('apl-session', acs));
     });
   });
 }

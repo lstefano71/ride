@@ -20,215 +20,222 @@
 <!--Connect page-->
 <div id=cn class="container-fluid" hidden>
   <div id="cn_lhs" class="col col-xs-3">
+    <p class="cn_head">Available Configurations</p>
     <div id=cn_favs></div>
-    <div id=cn_fav_btns class="row">
-      <div class="col col-xs-3"><button id=cn_neu class=tb_btn title="New"><span class="fas fa-plus-square"></span></button></div>
-      <div class="col col-xs-3"><button id=cn_cln class=tb_btn title="Clone"><span class="fas fa-clone"></span></button></div>
-      <div class="col col-xs-3"><button id=cn_del class=tb_btn title="Delete"><span class="fas fa-minus-square"></span></button></div>
-      <div class="col col-xs-3"><button id=cn_sve class=tb_btn title="Save"><span class="fas fa-save"></span></button></div>
+    <div id=cn_fav_btns class=dlg_btns>
+      <div class="col left">
+        <button id=cn_neu><u>N</u>ew...</button>
+      </div>
     </div>
   </div>
-  <div id="cn_rhs" class="col col-xs-9">
-    <div class="row">
-      <div class="col col-xs-3"><label for=cn_fav_name>C<u>o</u>nfiguration name:</label></div>
-      <div class="col col-xs-9"><input id=cn_fav_name placeholder=unnamed></div>
-    </div>
-    <div class="row">
-      <div class="col col-xs-3"><label for=cn_type><u>T</u>ype:</label></div>
-      <div class="col col-xs-9">
+  <div id="cn_rhs">
+    <p class="cn_head">Configuration Details</p>
+    <div id="cn_rhs_inner">
+      <div id=cn_type_dtl>
         <div class="row">
-          <div class="col col-xs-6">
-            <select id=cn_type class=cn_select>
-              <option value=connect     title="Connect to an interpreter"                  >Connect
-              <option value=start       title="Start and connect to an interpreter"        >Start
-              <option value=listen      title="Start and connect to an interpreter via SSL">Listen
-            </select>
-          </div>
-          <div class="col col-xs-6">
-            <select id=cn_subtype hidden>
-              <option value=raw title="Connect to an interpreter via raw TCP/IP" id=cn_raw_opt>TCP
-              <option value=ssh title="Connect to an interpreter via SSH"                     >SSH
-              <option value=ssl title="Connect to an interpreter using TLS/SSL"  id=cn_ssl_opt>TLS/SSL
+          <div class="col col-sm-12 col-md-3"><label for=cn_fav_name>C<u>o</u>nfiguration name:</label></div>
+          <div class="col col-sm-12 col-md-9"><input id="cn_fav_name" name=favname placeholder="unnamed" maxlength="30"></div>
+        </div>
+        <div class="row">
+          <div class="col col-sm-12 col-md-3"><label for=cn_type><u>T</u>ype:</label></div>
+          <div class="col col-sm-12 col-md-9">
+            <select id=cn_type name=type class=cn_select>
+              <option value=connect     >Connect to an interpreter
+              <option value=start       >Start an interpreter
+              <option value=listen      >Listen for an incoming connection
             </select>
           </div>
         </div>
+        <div class="row">
+          <div class="col col-sm-12 col-md-3"></div>
+          <div class="col col-sm-12 col-md-9">
+            <select id=cn_subtype name=subtype hidden>
+              <option value=raw  id=cn_raw_opt>via TCP
+              <option value=ssh               >via SSH
+              <option value=ssl   id=cn_ssl_opt>via TLS/SSL
+            </select>
+          </div>
+        </div>
+        <hr>
       </div>
-    </div>
-    <div class="row">
-        <div class="col col-xs-3 col-xs-offset-3">
-          <button id=cn_go><u>C</u>onnect</button>
+      <div id=cn_dtl>
+        <div class="row">
+          <div class="col col-sm-12 col-md-3">
+            <input type=checkbox id=cn_log_cb>
+            <label for=cn_log_cb>
+              Save protocol <u>l</u>og</span>
+            </label>
+          </div>
+          <div class="col col-sm-12 col-md-9">
+            <div class="row">
+              <div class="col col-xs-12">
+                <input id=cn_log name=log placeholder="Log file" class=browse>
+                <button id=cn_log_dots class=tb_btn><span class="fas fa-ellipsis-h"></span></button>
+              </div>
+            </div>
+          </div>
         </div>
-    </div>
-    <hr>
-    <div id=cn_dtl>
-      <div class="row">
-        <div class="col col-xs-3">
-          <input type=checkbox id=cn_log_cb>
-          <label for=cn_log_cb>
-            Save protocol <u>l</u>og</span>
-          </label>
+        <div id=cn_tcp_dtl>
+          <div class="row">
+            <div class="col col-sm-12 col-md-3"><label for=cn_tcp_host class=cn_label><u>H</u>ost:</label></div>
+            <div class="col col-sm-12 col-md-9"><input id=cn_tcp_host name=host size=12 placeholder=localhost></div>
+          </div>
+          <div class="row">
+            <div class="col col-sm-12 col-md-3"><label for=cn_tcp_port class=cn_label><u>P</u>ort:</label></div>
+            <div class="col col-sm-12 col-md-9"><input id=cn_tcp_port name=port size=4 placeholder=4502></div>
+          </div>
         </div>
-        <div class="col col-xs-9">
+        <div class="row">
+          <div class="col col-xs-12" id=cn_respawn>
+            <input type=checkbox id=cn_respawn_cb name=respawn>
+            <label for=cn_respawn_cb>
+              <u>R</u>espawn listener on connection
+            </label>
+          </div>
+        </div>
+        <div id=cn_ssh hidden>
+          <div class="row">
+            <div class="col col-sm-12 col-md-3"><label for=cn_ssh_port class=cn_label>SSH <u>P</u>ort:</label></div>
+            <div class="col col-sm-12 col-md-9"><input id=cn_ssh_port name=ssh_port size=4 placeholder=22></div>
+          </div>
+          <div class="row">
+            <div class="col col-sm-12 col-md-3"><label for=cn_ssh_user class=cn_label><u>U</u>ser:</label></div>
+            <div class="col col-sm-12 col-md-9"><input id=cn_ssh_user name=user size=10></div>
+          </div>
+          <div class="row">
+            <div class="col col-sm-12 col-md-3"><label for=cn_ssh_pass class=cn_label><u>P</u>assword&nbsp;/&nbsp;passphrase:</label></div>
+            <div class="col col-sm-12 col-md-9"><input id=cn_ssh_pass type=password></div>
+          </div>
+          <div class="row">
+            <div class="col col-sm-12 col-md-3"><label for=cn_ssh_key class=cn_label><u>K</u>ey file:</label></div>
+            <div class="col col-sm-12 col-md-9">
+              <input id=cn_ssh_key name=ssh_key class=browse>
+              <button id=cn_ssh_key_dots class=tb_btn><span class="fas fa-ellipsis-h"></span></button>
+            </div>
+          </div>
+        </div>
+        <div id=cn_ssl hidden>
           <div class="row">
             <div class="col col-xs-12">
-              <input id=cn_log name=log placeholder="Log file" class=browse>
-              <button id=cn_log_dots class=tb_btn><span class="fas fa-ellipsis-h"></span></button>
+              <input type=checkbox id=cn_cert_cb name=certcb>
+              <label for=cn_cert_cb>
+                Provide user c<u>e</u>rtificate</span>
+              </label>
             </div>
           </div>
-        </div>
-      </div>
-      <div id=cn_tcp_dtl>
-        <div class="row">
-          <div class="col col-xs-3"><label for=cn_tcp_host class=cn_label><u>H</u>ost:</label></div>
-          <div class="col col-xs-9"><input id=cn_tcp_host name=host size=12 placeholder=localhost></div>
-        </div>
-        <div class="row">
-          <div class="col col-xs-3"><label for=cn_tcp_port class=cn_label><u>P</u>ort:</label></div>
-          <div class="col col-xs-9"><input id=cn_tcp_port name=port size=4 placeholder=4502></div>
-        </div>
-      </div>
-      <div class="row">
-        <div class="col col-xs-12" id=cn_respawn>
-          <input type=checkbox id=cn_respawn_cb name=respawn>
-          <label for=cn_respawn_cb>
-            <u>R</u>espawn listener on connection
-          </label>
-        </div>
-      </div>
-      <div id=cn_ssh hidden>
-        <div class="row">
-          <div class="col col-xs-3"><label for=cn_ssh_port class=cn_label>SSH <u>P</u>ort:</label></div>
-          <div class="col col-xs-9"><input id=cn_ssh_port name=ssh_port size=4 placeholder=22></div>
-        </div>
-        <div class="row">
-          <div class="col col-xs-3"><label for=cn_ssh_user class=cn_label><u>U</u>ser:</label></div>
-          <div class="col col-xs-9"><input id=cn_ssh_user name=user size=10></div>
-        </div>
-        <div class="row">
-          <div class="col col-xs-3"><label for=cn_ssh_key class=cn_label><u>K</u>ey file:</label></div>
-          <div class="col col-xs-9">
-            <input id=cn_ssh_key name=ssh_key class=browse>
-            <button id=cn_ssh_key_dots class=tb_btn><span class="fas fa-ellipsis-h"></span></button>
-          </div>
-        </div>
-        <div class="row">
-          <div class="col col-xs-3"><label for=cn_ssh_pass class=cn_label><u>P</u>assword / passphrase:</label></div>
-          <div class="col col-xs-9"><input id=cn_ssh_pass type=password></div>
-        </div>
-      </div>
-      <div id=cn_ssl hidden>
-        <div class="row">
-          <div class="col col-xs-12">
-            <input type=checkbox id=cn_cert_cb>
-            <label for=cn_cert_cb>
-              Provide user c<u>e</u>rtificate</span>
-            </label>
-          </div>
-        </div>
-        <div class="row">
-          <div class="col col-xs-3">
-            <label style=padding-left:2em>Cert</span>
-          </div>
-          <div class="col col-xs-9">
-            <div class="row">
-              <div class="col col-xs-12">
-                <input id=cn_cert name=cert placeholder="PEM file" class=browse>
-                <button id=cn_cert_dots class=tb_btn><span class="fas fa-ellipsis-h"></span></button>
+          <div class="row">
+            <div class="col col-xs-3">
+              <label style=padding-left:2em>Cert</span>
+            </div>
+            <div class="col col-xs-9">
+              <div class="row">
+                <div class="col col-xs-12">
+                  <input id=cn_cert name=cert placeholder="PEM file" class=browse>
+                  <button id=cn_cert_dots class=tb_btn><span class="fas fa-ellipsis-h"></span></button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <div class="row">
-          <div class="col col-xs-3">
-            <label style=padding-left:2em>Key</label>
-          </div>
-          <div class="col col-xs-9">
-            <div class="row">
-              <div class="col col-xs-12">
-                <input id=cn_key name=key placeholder="PEM file" class=browse>
-                <button id=cn_key_dots class=tb_btn><span class="fas fa-ellipsis-h"></span></button>
+          <div class="row">
+            <div class="col col-xs-3">
+              <label style=padding-left:2em>Key</label>
+            </div>
+            <div class="col col-xs-9">
+              <div class="row">
+                <div class="col col-xs-12">
+                  <input id=cn_key name=key placeholder="PEM file" class=browse>
+                  <button id=cn_key_dots class=tb_btn><span class="fas fa-ellipsis-h"></span></button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <div class="row">
-          <div class="col col-xs-12">
-            <input type=checkbox id=cn_rootcertsdir_cb>
-            <label for=cn_rootcertsdir_cb>
-              Custom root certificates
-            </label>
+          <div class="row">
+            <div class="col col-xs-12">
+              <input type=checkbox id=cn_rootcertsdir_cb name=rootcertsdircb>
+              <label for=cn_rootcertsdir_cb>
+                Custom root certificates
+              </label>
+            </div>
           </div>
-        </div>
-        <div class="row">
-          <div class="col col-xs-3">
-            <label style=padding-left:2em>Directory</label>
-          </div>
-          <div class="col col-xs-9">
-            <div class="row">
-              <div class="col col-xs-12">
-                <input id=cn_rootcertsdir name=rootcertsdir placeholder="PEM files" class=browse>
-                <button id=cn_rootcertsdir_dots class=tb_btn><span class="fas fa-ellipsis-h"></span></button>
+          <div class="row">
+            <div class="col col-xs-3">
+              <label style=padding-left:2em>Directory</label>
+            </div>
+            <div class="col col-xs-9">
+              <div class="row">
+                <div class="col col-xs-12">
+                  <input id=cn_rootcertsdir name=rootcertsdir placeholder="PEM files" class=browse>
+                  <button id=cn_rootcertsdir_dots class=tb_btn><span class="fas fa-ellipsis-h"></span></button>
+                </div>
               </div>
             </div>
           </div>
+          <div class="row">
+            <div class="col col-xs-12">
+              <input type=checkbox id=cn_subj_cb name=subjcb>
+              <label for=cn_subj_cb>
+                <u>V</u>alidate server subject common name matches hostname
+              </label>
+            </div>
+          </div>
         </div>
-        <div class="row">
-          <div class="col col-xs-12">
-            <input type=checkbox id=cn_subj_cb>
-            <label for=cn_subj_cb>
-              <u>V</u>alidate server subject common name matches hostname
-            </label>
+        <div id=cn_start hidden>
+          <div class="row" id=cn_exes_dtl>
+            <div class="col col-sm-12 col-md-3"><label for=cn_exes class=cn_label><u>I</u>nterpreter:</label></div>
+            <div class="col col-sm-12 col-md-9">
+              <select id=cn_exes  class="cn_select browse"></select>
+              <button id=cn_fetch class=tb_btn title="Fetch list of interpreters through ssh">
+                <span class="fas fa-sync-alt"></span>
+              </button>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col col-sm-12 col-md-3"><label for=cn_exe class=cn_label>Exe path:</label></div>
+            <div class="col col-sm-12 col-md-9">
+              <input id=cn_exe name=exe placeholder='path to executable'>
+            </div>
+          </div>
+          <div class="row" id=cn_cwd_fld>
+            <div class="col col-sm-12 col-md-3"><label for=cn_cwd><u>W</u>orking directory:</label></div>
+            <div class="col col-sm-12 col-md-9"><input id=cn_cwd name=cwd></div>
+          </div>
+          <div class="row">
+            <div class="col col-sm-12 col-md-3">
+              <label for=cn_args>Arg<u>u</u>ments:</label>
+              <div class="tooltip">
+                <span class="fas fa-question-circle"></span>
+                <span class="tooltiptext">one per line; if needed, Ride may also pass "+s" and "-q"</span>
+              </div>
+            </div>
+            <div class="col col-sm-12 col-md-9">
+              <textarea id=cn_args name=args cols=40 rows=3></textarea>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-sm-12 col-md-3">
+              <label for=cn_env><u>C</u>onfiguration parameters:</label>
+              <div class="tooltip">
+                <span class="fas fa-question-circle"></span>
+                <span class="tooltiptext">key=value, one pair per line, no extra spaces, no quoting or escaping of value</span>
+              </div>
+            </div>
+            <div class="col col-sm-12 col-md-9">
+              <textarea id=cn_env name=env cols=40 rows=3></textarea>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col col col-sm-12 col-md-9 col-md-offset-3">
+              <span id=cn_env_add>For example:<br><a href=#>MAXWS=1G</a><br><a href=#>WSPATH=.</a><br><a href=#>HISTORY_SIZE=1000</a></span>
+            </div>
           </div>
         </div>
       </div>
-      <div id=cn_start hidden>
-        <div class="row">
-          <div class="col col-xs-3"><label for=cn_exes class=cn_label><u>I</u>nterpreter:</label></div>
-          <div class="col col-xs-9">
-            <select id=cn_exes name=exes class="cn_select browse"></select>
-            <button id=cn_fetch class=tb_btn title="Fetch list of interpreters through ssh">
-              <span class="fas fa-sync-alt"></span>
-            </button>
-          </div>
-        </div>
-        <div class="row">
-          <div class="col col-xs-9 col-xs-offset-3">
-            <input id=cn_exe name=exe placeholder='path to executable'>
-          </div>
-        </div>
-        <div class="row" id=cn_cwd_fld>
-          <div class="col col-xs-3"><label for=cn_cwd><u>W</u>orking directory:</label></div>
-          <div class="col col-xs-9"><input id=cn_cwd name=cwd></div>
-        </div>
-        <div class="row">
-          <div class="col col-xs-3">
-            <label for=cn_args>Arg<u>u</u>ments:</label>
-            <div class="tooltip">
-              <span class="fas fa-question-circle"></span>
-              <span class="tooltiptext">one per line; if needed, RIDE may also pass "+s" and "-q"</span>
-            </div>
-          </div>
-          <div class="col col-xs-9">
-            <textarea id=cn_args name=args cols=40 rows=3></textarea>
-          </div>
-        </div>
-        <div class="row">
-          <div class="col col-xs-3">
-            <label for=cn_env><u>C</u>onfiguration parameters:</label>
-            <div class="tooltip">
-              <span class="fas fa-question-circle"></span>
-              <span class="tooltiptext">key=value, one pair per line, no extra spaces, no quoting or escaping of value</span>
-            </div>
-          </div>
-          <div class="col col-xs-9">
-            <textarea id=cn_env name=env cols=40 rows=3></textarea>
-          </div>
-        </div>
-        <div class="row">
-          <div class="col col-xs-9 col-xs-offset-3">
-            <span id=cn_env_add>For example:<br><a href=#>MAXWS=1G</a><br><a href=#>WSPATH=.</a><br><a href=#>HISTORY_SIZE=1000</a></span>
-          </div>
-        </div>
+    </div>
+    <div class=dlg_btns>
+      <div class="col left">
+        <button id=cn_cln><u>C</u>lone</button>
+        <button id=cn_del><u>D</u>elete</button>
+        <button id=cn_go class="pull-right"><u>O</u>k</button>
       </div>
     </div>
   </div>
@@ -270,11 +277,10 @@
 </div>
 <div id=lb_tip hidden><div id=lb_tip_desc></div><hr><div id=lb_tip_body><pre id=lb_tip_text></pre></div></div>
 <div id=sb hidden>
-  <div id=sb_left>
-    <div id=sb_prf><a class=tb_btn href=# title=Preferences><span class="fas fa-cog"></span></a></div>
+  <div id=sb_left >
     <div id=sb_busy title="Busy" hidden><span class="fas fa-clock"></span></div>
   </div>
-  <div id=sb_right>
+  <div id=sb_right >
     <div id=sb_gc title="Garbage collections" hidden>GC: </div>
     <div id=sb_cc title="Compaction Count" hidden>CC: </div>
     <div id=sb_threads title="Thread Count" hidden>&: </div>
@@ -289,62 +295,145 @@
 <div id=ed_tmpl class="ride_win edit_trace" style=display:none>
   <div class=toolbar>
     <a href=# class='tb_btn tb_ER tc_only' title='Execute line'>
-      <span class="fas fa-eject" data-fa-transform="shrink-3 rotate-90"></span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <g id="level-1">
+          <path fill="currentColor" d="M9.5,12.5a2,2,0,1,1-2-2A2,2,0,0,1,9.5,12.5Z" />
+          <path fill="currentColor" d="M14,4.5v4l-.5.5h-4V8h2.89A5.494,5.494,0,0,0,2.168,9.146L1.2,8.9A6.485,6.485,0,0,1,13,7.069V4.5Z" />
+        </g>
+      </svg>
     </a>
     <a href=# class='tb_btn tb_TC tc_only' title='Trace into expression'>
-      <span class="fas fa-level-down" data-fa-transform="shrink-3"></span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <g id="level-1">
+          <path fill="currentColor" d="M7.5,14.5a2,2,0,1,1,2-2A2,2,0,0,1,7.5,14.5Z" />
+          <path fill="currentColor" d="M11.036,5.657,7.854,8.839H7.146L3.964,5.657l.708-.707L7,7.278V0H8V7.278L10.328,4.95Z" />
+        </g>
+      </svg>
     </a>
     <a href=# class='tb_btn tb_BK tc_only' title='Go back one line'>
-      <span class="fas fa-arrow-left" data-fa-transform="shrink-3"></span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <g id="level-1">
+          <path fill="currentColor" d="M3,4.5V7.069A6.485,6.485,0,0,1,14.8,8.9l-.969.247A5.494,5.494,0,0,0,3.61,8H6.5V9h-4L2,8.5v-4Z" />
+        </g>
+      </svg>    
     </a>
     <a href=# class='tb_btn tb_FD tc_only' title='Skip current line'>
-      <span class="fas fa-arrow-right" data-fa-transform="shrink-3"></span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <g id="level-1">
+          <path fill="currentColor" d="M14,4.5v4l-.5.5h-4V8h2.89A5.494,5.494,0,0,0,2.168,9.146L1.2,8.9A6.485,6.485,0,0,1,13,7.069V4.5Z" />
+        </g>
+      </svg>
     </a>
     <a href=# class='tb_btn tb_BH tc_only' title='Stop on next line of calling function'>
-      <span class="fas fa-level-up" data-fa-transform="shrink-3"></span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <g id="level-1">
+          <path fill="currentColor" d="M7.5,14.5a2,2,0,1,1,2-2A2,2,0,0,1,7.5,14.5Z" />
+          <path fill="currentColor" d="M10.4,4.1,8,1.707V9H7V1.707L4.6,4.1,3.9,3.4,7.146.146h.708L11.1,3.4Z" />
+        </g>
+      </svg>
     </a>
     <a href=# class='tb_btn tb_RM tc_only' title='Continue this thread'>
-      <span class="fas fa-angle-right"></span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <g id="level-1">
+          <path fill="currentColor" d="M3.777,1.084,3,1.5v12l.777.416,9-6V7.084Z" />
+        </g>
+      </svg>
     </a>
     <a href=# class='tb_btn tb_MA tc_only' title='Continue execution of all threads'>
-      <span class="fas fa-angle-double-right"></span>   
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <g id="level-1">
+          <path fill="currentColor" class="light" d="M1.5,1.47v12L5,11.14V3.8Z" />
+          <path fill="currentColor" d="M1.78,1.08,1,1.5v12l.78.42L5,11.77v-1.2l-3,2V2.43l3,2V3.23Z" />
+          <path fill="currentColor" d="M6.777,1.084,6,1.5v12l.777.416,9-6V7.084Z" />
+        </g>
+      </svg>
     </a>
     <span class='tb_sep tc_only'></span>
     <a href=# class='tb_btn tb_ED tc_only' title='Edit name'>
-      <span class="fas fa-pencil-alt"  data-fa-transform="shrink-3"></span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <g id="level-1">
+          <g class="cls-1">
+            <path fill="currentColor" class="light" d="M6.286,13.5H2.5V1.5h7l3,3V6.252L7.262,11.489Z" />
+            <path fill="currentColor" d="M6.043,14H2.5L2,13.5V1.5L2.5,1h7l.354.146,3,3L13,4.5V5.817a2.66,2.66,0,0,0-.369.3L12,6.752V5H9V2H3V13H6.529Z" />
+          </g>
+          <path class="light" d="M15.192,8.681,9.635,14.238,8.153,12.72l5.539-5.539a1.059,1.059,0,0,1,1.5,0A1.062,1.062,0,0,1,15.192,8.681Z" />
+          <path fill="currentColor" d="M15.543,6.83a1.56,1.56,0,0,0-2.2,0l-5.25,5.25L6.511,15.326,7.186,16l2.995-1.629,5.365-5.336A1.562,1.562,0,0,0,15.543,6.83Zm-.7,1.5-5.2,5.2-.783-.8,5.19-5.189a.56.56,0,0,1,.792.793Z" />
+        </g>
+      </svg>
     </a>
-    <a href=# class='tb_btn tb_EP ed_only' title='Save changes and return'>
-      <span class="far fa-times-circle"></span>
+    <a href=# class='tb_btn tb_EDA var_only' title='Edit in Array Notation'>
+      <span class="fal fa-edit"></span>
+    </a>
+    <a href=# class='tb_btn tb_EP ed_only' title='Save changes and close editor'>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <g id="level-1">
+          <path fill="currentColor" class="light" d="M12.51,1.5H8V6.91L6.91,8H1.51v6.5h13V3.5Z" />
+          <path fill="currentColor" d="M14.85,3.15l-2-2L12.5,1H8V2h3V6H8v.91L7.91,7H11.5l.5-.5V2h.29L14,3.71V14H2V8H1v6.5l.5.5h13l.5-.5V3.5Z" />
+          <g class="cls-1">
+            <path fill="currentColor" class="middle" d="M12.5,8h-9L3,8.5v6H4V9h8v5.5h1v-6Z" />
+          </g>
+          <path fill="currentColor" class="light" d="M7,.5v6L6.5,7H.5L0,6.5V.5L.5,0h6Z" />
+          <path fill="currentColor" d="M5.146,5.854,3.5,4.207,2,5.707,1.293,5l1.5-1.5L1.293,2,2,1.293l1.5,1.5L5,1.293,5.707,2l-1.5,1.5L5.854,5.146Z" />
+        </g>
+      </svg>
     </a>
     <a href=# class='tb_btn tb_FX ed_only' title='Save changes'>
-      <span class="far fa-save"></span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <g id="level-1">
+          <path fill="currentColor" class="light" d="M14.515,3.5v11h-13V1.5h11Z" />
+          <path fill="currentColor" d="M14.854,3.146l-2-2L12.5,1H1.5L1,1.5v13l.5.5h13l.5-.5V3.5ZM5,2h6V6H5Zm9,12H2V2H4V6.5l.5.5h7l.5-.5V2h.293L14,3.707Z" />
+          <g class="cls-1">
+            <path fill="currentColor" class="middle" d="M13,8.5v6H12V9H4v5.5H3v-6L3.5,8h9Z" />
+          </g>
+        </g>
+      </svg>
     </a>
     <span class='tb_sep'></span>
     <a href=# class='tb_btn tb_QT tc_only' title='Quit this function'>
-      <span class="far fa-times-circle"></span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <g id="level-1">
+          <path fill="currentColor" d="M7.854,7.146l-.708.708L2,2.707V6H1V1.5L1.5,1H6V2H2.707Z" />
+          <path fill="currentColor" d="M12.5,10.5a2,2,0,1,1-2,2A2,2,0,0,1,12.5,10.5Z" />
+        </g>
+      </svg>
     </a>
     <a href=# class='tb_btn tb_WI tc_only' title='Interrupt'>
-      <span class="far fa-pause-circle"></span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <g id="level-1">
+          <g class="cls-1">
+            <path fill="currentColor" d="M6.5,3.5v9h-3v-9Z" />
+            <path fill="currentColor" d="M12.5,3.5v9h-3v-9Z" />
+          </g>
+          <path fill="currentColor" class="light" d="M12.5,3h-3L9,3.5v9l.5.5h3l.5-.5v-9ZM12,12H10V4h2ZM6.5,3h-3L3,3.5v9l.5.5h3l.5-.5v-9ZM6,12H4V4H6Z" />
+        </g>
+      </svg>
     </a>
-    <a href=# class='tb_btn tb_CBP tc_only' title='Clear stops for this object'>
-      <span class="fa-layers">
-        <span class="far fa-clock" data-fa-transform="shrink-8 down-4 right-4"></span>
-        <span class="fas fa-circle" data-fa-transform="shrink-8 up-4"></span>
-        <span class="fas fa-circle" data-fa-transform="shrink-8 down-4 left-4" style="color:red"></span>
-        <span class="fas fa-times fa-inverse" data-fa-transform="shrink-10 down-4 left-4"></span>
-      </span>      
+    <a href=# class='tb_btn tb_CBP code_only' title='Clear stops for this object'>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <g id="level-1">
+          <g class="cls-1">
+            <path fill="currentColor" class="light" d="M16,7.5a4.983,4.983,0,0,1-2.566,4.34A5.955,5.955,0,0,0,6.66,5.066,4.983,4.983,0,0,1,16,7.5Z" />
+          </g>
+          <path fill="currentColor" d="M12.5,11a5,5,0,1,1-5-5A5.006,5.006,0,0,1,12.5,11Z" />
+          <path fill="currentColor" class="middle" d="M3.681,3,5.84,5.155l-.68.68L3,3.674.84,5.835l-.68-.68L2.319,3,.16.837.84.157,3,2.318,5.16.157l.68.68Z" />
+        </g>
+      </svg>
     </a>
     <span class='tb_sep ed_only'></span>
     <a href=# class='tb_btn tb_LN' title='Toggle line numbers'>
-      <span class="fal fa-list-ol"></span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <g id="level-1">
+          <path fill="currentColor" d="M15,3V4H5V3ZM5,7H15V8H5Zm0,4H15v1H5ZM2.055,2.727a1.356,1.356,0,0,1-.289.164.992.992,0,0,1-.336.086v-.54q.242-.086.461-.187a2.269,2.269,0,0,0,.421-.258H2.7V5h-.64ZM2.047,6.008a1.362,1.362,0,0,1,.367.047.8.8,0,0,1,.3.156.727.727,0,0,1,.2.266A.968.968,0,0,1,3,6.844a.9.9,0,0,1-.094.422,1.621,1.621,0,0,1-.226.328,1.459,1.459,0,0,1-.305.258,3.056,3.056,0,0,0-.3.21c-.083.068-.161.133-.234.2a.222.222,0,0,0-.094.2H3V9H1.039V8.68a.714.714,0,0,1,.078-.3,1.264,1.264,0,0,1,.32-.445q.2-.18.4-.344c.13-.109.247-.214.351-.313a.46.46,0,0,0,.149-.367.347.347,0,0,0-.117-.3.521.521,0,0,0-.313-.086.883.883,0,0,0-.383.086,1.805,1.805,0,0,0-.343.219v-.57A1.57,1.57,0,0,1,2.047,6.008Zm.281,5.461a.887.887,0,0,1,.477.211A.6.6,0,0,1,3,12.156a.844.844,0,0,1-.094.414.716.716,0,0,1-.258.274A1.394,1.394,0,0,1,2.289,13a1.578,1.578,0,0,1-.422.055,2.26,2.26,0,0,1-.375-.032,1.318,1.318,0,0,1-.367-.117v-.57a1.091,1.091,0,0,0,.32.164,1.22,1.22,0,0,0,.367.055.737.737,0,0,0,.36-.086.348.348,0,0,0,.164-.321.3.3,0,0,0-.1-.25.691.691,0,0,0-.242-.117,1.137,1.137,0,0,0-.3-.039H1.422v-.5h.25a1.486,1.486,0,0,0,.265-.023.431.431,0,0,0,.219-.11.31.31,0,0,0,.094-.242.306.306,0,0,0-.125-.281.581.581,0,0,0-.313-.078,1.006,1.006,0,0,0-.578.187v-.531a1.29,1.29,0,0,1,.352-.117,2.8,2.8,0,0,1,.375-.039,1.551,1.551,0,0,1,.344.039.941.941,0,0,1,.3.125.672.672,0,0,1,.305.57.694.694,0,0,1-.148.469.851.851,0,0,1-.438.25Z" />
+        </g>
+      </svg>
     </a>
-    <span class='tb_sep ed_only'></span>
-    <a href=# class='tb_btn tb_AO ed_only' title='Comment selected text'>
+    <span class='tb_sep ed_only code_only'></span>
+    <a href=# class='tb_btn tb_AO ed_only code_only' title='Comment selected text'>
       <span class="fa-layers">
         <span class="fa-layers-text" data-fa-transform="grow-4 up-3" style="font-family:apl">⍝</span>
       </span>
     </a>
-    <a href=# class='tb_btn tb_DO ed_only' title='Uncomment selected text'>
+    <a href=# class='tb_btn tb_DO ed_only code_only' title='Uncomment selected text'>
       <span class="fa-layers">
         <span class="fa-layers-text" data-fa-transform="grow-4 up-3" style="font-family:apl">⍝</span>
         <span class="fas fa-circle" data-fa-transform="shrink-8 down-3 left-3" style="color:red"></span>
@@ -353,7 +442,12 @@
     </a>
     <span class=tb_sep></span>
     <a href=# class='tb_btn tb_SC' title='Search'>
-      <span class="fas fa-search" data-fa-transform="shrink-3"></span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <g id="level-1">
+          <path fill="currentColor" class="light" d="M14.5,6A4.5,4.5,0,1,1,10,1.5,4.5,4.5,0,0,1,14.5,6Z" />
+          <path fill="currentColor" d="M10,1A5.006,5.006,0,0,0,5,6,4.955,4.955,0,0,0,6.163,9.167L1.177,14.152l.707.707L6.874,9.87A4.946,4.946,0,0,0,10,11,5,5,0,0,0,10,1Zm0,9a4,4,0,1,1,4-4A4,4,0,0,1,10,10Z" />
+        </g>
+      </svg>
     </a>
   </div>
   <div class=ride_win_me>
@@ -386,8 +480,9 @@
 <div id=abt class=dlg hidden>
   <div id=abt_logo class=dlg_title>
     <div id=abt_contact class=dlg_no_drag>
-      <span title="Dyalog's UK phone number">+44 1256 830030</span><br>
-      <a id=abt_email href=#>support@dyalog.com</a><br>
+      <a id=abt_phone href="tel:+441256830030" 
+         title="Dyalog's UK phone number">+44 1256 830030</a><br>
+      <a id=abt_email href="mailto:support@dyalog.com">support@dyalog.com</a><br>
       <a href='http://www.dyalog.com/' target=_blank>www.dyalog.com</a>
     </div>
   </div>
@@ -405,22 +500,21 @@
     <a href=#code>General</a>
     <a href=#lyt class=sel>Keyboard</a>
     <a href=#shc>Shortcuts</a>
-    <a href=#resp>Saved Responses</a>
-    <a href=#col>Colours</a>
+    <a href=#col>Style</a>
     <a href=#title>Title</a>
     <a href=#pmenu>Menu</a>
-    <a href=#wins>Windows</a>
-    <button id=prf_print class=tb_btn><span class="fal fa-print"></span></button>
+    <a href=#wins>Trace/Edit</a>
   </div>
-  <hr>
   <div id=prf_content>
 
     <!--Layout-->
     <div id=lyt>
       <div id=lyt_ctrls>
         <button id=lyt_rst title="Restore defaults for selected locale"><u>R</u>eset</button>
+        <button id=lyt_prnt title="Print"><u>P</u>rint</button>
         <label id=lyt_pfx_lbl><u>P</u>refix: <input id=lyt_pfx size=1></label>
-        <label id=lyt_lc_lbl>Choose <u>l</u>ayout: <select id=lyt_lc></select></label>
+        <label id=lyt_lc_lbl for lyt_lc>Choose <u>l</u>ayout:</label>
+        <select id=lyt_lc></select>
       </div>
       <div id=lyt_kbd>
         <b id=lyt_1  class=lyt_k><b class=lyt_g2></b><input class=lyt_g3><br><b class=lyt_g0></b><input class=lyt_g1></b>
@@ -487,7 +581,7 @@
       </div>
       <input type=checkbox id=lyt_ime hidden>
       <label id=lyt_ime_wr for=lyt_ime>
-        Also enable Dyalog IME (requires RIDE restart)
+        Also enable Dyalog IME (requires Ride restart)
       </label>
     </div>
 
@@ -495,6 +589,7 @@
     <div id=shc hidden>
       <div id=shc_ctrls>
         <button id=shc_rst_all title="Reset all to their defaults"><u>R</u>eset</button>
+        <button id=shc_prnt title="Print"><u>P</u>rint</button>
         <input id=shc_sc placeholder=Search><a id=shc_sc_clr href=# hidden title="Clear search">×</a>
         <input type=checkbox id=shc_defined>
         <label id=shc_defined_lb for=shc_defined>Only show defined shortcuts</label>
@@ -503,33 +598,13 @@
       <div id=shc_no_res hidden>No results</div>
     </div>
 
-    <!--Saved Responses-->
-    <div id=resp hidden>
-      <div id=resp_ctrls>
-        <button id=resp_sel_all title="Select all responses"><u>S</u>elect All</button>
-        <button id=resp_del title="Delete response"><u>D</u>elete</button>
-      </div>
-      <select id=resp_qns multiple></select>
-    </div>
-
     <!--Code-->
     <div id=code hidden>
-      <h2>Indentation</h2>
-      <p><input id=code_io   type=checkbox><label for=code_io  >I<u>n</u>dent content when an editor is opened</label></p>
-      <p><input id=code_ilf  type=checkbox><label for=code_ilf >Handle <u>f</u>ormatting through the interpreter</label></p>
-      <p><input id=code_ai   type=checkbox><label for=code_ai  >A<u>u</u>to-indent</label>
-         <input id=code_sw  size=1><label for=code_sw> spaces</label>
-      </p>
-      <p><input id=code_aim  type=checkbox><label for=code_aim >in <u>m</u>ethods:</label>
-         <input id=code_swm size=1><label for=code_swm> spaces</label>
-      </p>
-      <p><input id=code_icom type=checkbox><label for=code_icom><u>I</u>ndent lines that contain only a comment</label></p>
-      <hr>
-      <h2>Brackets</h2>
-      <p><input id=code_mb   type=checkbox><label for=code_mb  ><u>H</u>ighlight matching brackets: <tt>()[]{}</tt></label></p>
-      <p><input id=code_acbr type=checkbox><label for=code_acbr>Au<u>t</u>o-close brackets</label></p>
-      <hr>
       <h2>Contextual help</h2>
+      <p><input id=code_mb   type=checkbox><label for=code_mb  >
+        <u>H</u>ighlight matching brackets: <tt>()[]{}</tt></label>
+      </p>
+      <p><input id=code_acbr type=checkbox><label for=code_acbr>Au<u>t</u>o-close brackets</label></p>
       <p><label>Autocom<u>p</u>letion
         <select id=code_ac>
           <option value="off">off</option>
@@ -545,6 +620,9 @@
       <p><input id=code_sqt type=checkbox><label for=code_sqt>Show tips for <u>g</u>lyphs</label></p>
       <hr>
       <h2>Session</h2>
+      <p><input id=code_ast type=checkbox><label for=code_ast>
+        Auto-start top-most configuration when Ride starts</label>
+      </p>
       <p><input id=code_apw type=checkbox><label for=code_apw>Auto <u>P</u>W</label></p>
       <p><input id=code_ph  type=checkbox><label for=code_ph >Persistent history</label>
         <input id=code_phs size=4><label for=code_phs> lines</label>
@@ -552,6 +630,9 @@
       <p><label for=code_sls>Session log size
          <input id=code_sls size=6> lines (0 = unlimited)</label>
       </p>
+      <p><input id=code_ssm type=checkbox><label for=code_ssm>Show session <u>m</u>argin</label></p>
+      <p><input id=code_sqp type=checkbox><label for=code_sqp>Show <u>q</u>uit prompt</label></p>
+      <p><input id=code_coq type=checkbox><label for=code_coq>Connect on quit</label></p>
       <hr>
       <h2>Cursor</h2>
       <p><input id=code_bc type=checkbox><label for=code_bc><u>B</u>lock cursor</label></p>
@@ -575,32 +656,31 @@
       <hr>
       <h2>Minimap</h2>
       <p><input id=code_mme  type=checkbox><label for=code_mme>Minimap enabled</label></p>
-      <p><input id=code_mmrc type=checkbox><label for=code_mmrc>Minimap render characters</label></p>
+      <p><input id=code_mmrc type=checkbox class="sub"><label for=code_mmrc>Render characters</label></p>
       <p>
-        <label>Minimap show slider
+        <label class="sub">Show slider
           <select id=code_mmss>
             <option value="always">always</option>
             <option value="mouseover">mouseover</option>
           </select>
         </label>
       </p>
-      <hr>
-      <h2>Other</h2>
-      <p><input id=code_dce type=checkbox><label for=code_dce>Double click to edit</label></p>
-      <p><input id=code_sqp type=checkbox><label for=code_sqp>Show <u>q</u>uit prompt</label></p>
-      <p><input id=code_set type=checkbox><label for=code_set>Show toolbar in editor/trace windows</label></p>
-      <p><input id=code_coq type=checkbox><label for=code_coq>Connect on quit</label></p>
-      <p><input id=code_fit type=checkbox><label for=code_fit>Include filename in editor title</label></p>
     </div>
 
-    <!--Colours-->
+    <!--Style-->
     <div id=col hidden>
       <div id=col_top>
-        <label><u>S</u>cheme: <select id=col_scm></select></label>
-        <input id=col_new_name>
-        <button id=col_cln>C<u>l</u>one</button>
-        <button id=col_ren><u>R</u>ename</button>
-        <button id=col_del><u>D</u>elete</button>
+        <div>
+          <button id=col_fnt_rst class="pull-right"><u>R</u>eset</button>
+          <label for=col_fnt>APL <u>f</u>ont:</label><input id=col_fnt placeholder="APL385 Unicode">
+        </div>
+        <div>
+          <label>Colour <u>s</u>cheme: <select id=col_scm></select></label>
+          <input id=col_new_name>
+          <button id=col_cln>C<u>l</u>one & Edit</button>
+          <button id=col_ren><u>R</u>ename</button>
+          <button id=col_del><u>D</u>elete</button>
+        </div>
       </div>
       <div id=col_me></div>
       <div id=col_settings>
@@ -635,6 +715,7 @@
       <button id=title_rst><u>R</u>eset</button>
       <label for=title_inp>Window title:</label><input id=title_inp>
       <table id=title_subs>
+        <tr><td>Session caption</td><td><a>{CAPTION}</a></td></tr>
         <tr><td>Workspace name</td><td><a>{WSID}</a></td></tr>
         <tr><td>Interpreter's TCP endpoint</td><td><a>{HOST}</a>:<a href=#>{PORT}</a></td></tr>
         <tr><td>Connect profile in use</td><td><a>{PROFILE}</a></td></tr>
@@ -645,8 +726,8 @@
         <tr><td>- major</td><td>- <a>{VER_A}</a></td></tr>
         <tr><td>- minor</td><td>- <a>{VER_B}</a></td></tr>
         <tr><td>- svn revision</td><td>- <a>{VER_C}</a></td></tr>
-        <tr><td>PID of RIDE process</td><td><a>{RIDE_PID}</a></td></tr>
-        <tr><td>RIDE version</td><td><a>{RIDE_VER}</a></td></tr>
+        <tr><td>PID of Ride process</td><td><a>{RIDE_PID}</a></td></tr>
+        <tr><td>Ride version</td><td><a>{RIDE_VER}</a></td></tr>
         <tr><td>- major</td><td>- <a>{RIDE_VER_A}</a></td></tr>
         <tr><td>- minor</td><td>- <a>{RIDE_VER_B}</a></td></tr>
         <tr><td>- git commit number</td><td>- <a>{RIDE_VER_C}</a></td></tr>
@@ -661,8 +742,10 @@
       <div id=pmenu_ta_wr><textarea id=pmenu_ta wrap=off></textarea></div>
     </div>
    
-    <!--Windows-->
+    <!--Trace/Edit-->
     <div id=wins hidden>
+      <p><input id=wins_dce type=checkbox><label for=wins_dce>Double click to edit</label></p>
+      <p><input id=wins_set type=checkbox><label for=wins_set>Show toolbar</label></p>
       <div class="row">
         <div class="col col-xs-5">
           <input id=wins_fw type=checkbox>
@@ -671,36 +754,70 @@
       </div>
       <div class="row">
         <div class="col col-xs-5">
-          <input id=wins_fs type=checkbox>
+          <input id=wins_fit type=checkbox class="sub">
+          <label for=wins_fit>Include filename in editor title</label>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col col-xs-5">
+          <input id=wins_fs type=checkbox class="sub">
           <label for=wins_fs><u>S</u>ingle floating window</label>
         </div>
       </div>
       <div class="row">
-        <div class="col col-xs-12">
-          <input id=wins_mm type=checkbox>
+        <div class="col col-xs-6">
+          <input id=wins_mm type=checkbox class="sub">
           <label for=wins_mm><u>R</u>emember previous window position</label>
         </div>
       </div>
-      <div class="row">
-        <div class="col col-xs-2"><label for=wins_sw>Size <u>w</u>idth:</label></div>
-        <div class="col col-xs-1"><input id=wins_sw size=4></div>
-        <div class="col col-xs-1"><label for=wins_sh><u>h</u>eight:</label></div>
-        <div class="col col-xs-1"><input id=wins_sh size=4></div>
+      <div class="sub">
+        <div class="row">
+          <div class="col col-xs-2"><label for=wins_sw>Size <u>w</u>idth:</label></div>
+          <div class="col col-xs-1"><input id=wins_sw size=4></div>
+          <div class="col col-xs-1"><label for=wins_sh><u>h</u>eight:</label></div>
+          <div class="col col-xs-1"><input id=wins_sh size=4></div>
+        </div>
+        <div class="row">
+          <div class="col col-xs-2"><label for=wins_px>Posn <u>x</u>:</label></div>
+          <div class="col col-xs-1"><input id=wins_px size=4></div>
+          <div class="col col-xs-1"><label for=wins_py><u>y</u>:</label></div>
+          <div class="col col-xs-1"><input id=wins_py size=4></div>
+        </div>
+        <div class="row">
+          <div class="col col-xs-2"><label for=wins_ox>Offset <u>x</u>:</label></div>
+          <div class="col col-xs-1"><input id=wins_ox size=4></div>
+          <div class="col col-xs-1"><label for=wins_oy><u>y</u>:</label></div>
+          <div class="col col-xs-1"><input id=wins_oy size=4></div>
+        </div>
       </div>
-      <div class="row">
-        <div class="col col-xs-2"><label for=wins_px>Posn <u>x</u>:</label></div>
-        <div class="col col-xs-1"><input id=wins_px size=4></div>
-        <div class="col col-xs-1"><label for=wins_py><u>y</u>:</label></div>
-        <div class="col col-xs-1"><input id=wins_py size=4></div>
+      <hr>
+      <h2>Indentation</h2>
+      <p><input id=wins_io   type=checkbox><label for=wins_io  >I<u>n</u>dent content when an editor is opened</label></p>
+      <p>
+        <label for=wins_ilf >Handle <u>f</u>ormatting  
+          <select id=wins_ilf>
+            <option value="0">in Ride</option>
+            <option value="1">through the interpreter</option>
+          </select>
+        </label>
+      </p>
+      <div class="sub">
+        <p><input id=wins_ai   type=checkbox><label for=wins_ai  >A<u>u</u>to-indent</label>
+          <input id=wins_isw  size=1><label for=wins_isw> spaces</label>
+        </p>
+        <p><input id=wins_aim  type=checkbox class="sub"><label for=wins_aim >in <u>m</u>ethods:</label>
+          <input id=wins_swm size=1><label for=wins_swm> spaces</label>
+        </p>
+        <p><input id=wins_icom type=checkbox><label for=wins_icom><u>I</u>ndent lines that contain only a comment</label></p>
       </div>
-      <div class="row">
-        <div class="col col-xs-2"><label for=wins_ox>Offset <u>x</u>:</label></div>
-        <div class="col col-xs-1"><input id=wins_ox size=4></div>
-        <div class="col col-xs-1"><label for=wins_oy><u>y</u>:</label></div>
-        <div class="col col-xs-1"><input id=wins_oy size=4></div>
+      <hr> 
+      <h2>Saved Responses</h2>
+      <div id=wins_resp>
+        <button id=wins_sel_all title="Select all responses"><u>S</u>elect All</button>
+        <button id=wins_del title="Delete response"><u>D</u>elete</button>
       </div>
+      <select id=wins_qns multiple></select>
     </div>
-
   </div>
   <div class=dlg_btns>
     <button id=prf_dlg_ok><u>O</u>K</button>
@@ -709,7 +826,7 @@
   </div>
 </div>
 <!-- need to force loading the apl font for the monaco editor to be able to detect character widths on load  -->
-<span id="apl_font" style="font-family: apl;">RIDE</span> 
+<span id="apl_font" style="font-family: apl;">Ride</span> 
 
 <script>
   // Monaco uses a custom amd loader that over-rides node's require.
@@ -753,7 +870,7 @@
 
 
 
-<!--RIDE UI-->
+<!--Ride UI-->
 <script src=_/version.js      ></script>
 <script src=src/pre_init.js   ></script>
 <script src=src/syntax_info.js></script>
@@ -776,7 +893,6 @@
 <script src=src/prf_ui.js     ></script>
 <script src=src/prf_lyt.js    ></script>
 <script src=src/prf_shc.js    ></script>
-<script src=src/prf_resp.js   ></script>
 <script src=src/prf_code.js   ></script>
 <script src=src/prf_col.js    ></script>
 <script src=src/prf_title.js  ></script>

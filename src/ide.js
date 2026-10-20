@@ -1,8 +1,9 @@
-// represents the main screen of a connected RIDE
+/* eslint-disable no-plusplus */
+// represents the main screen of a connected Ride
 // holds refs to the session (.win[0]), editors/tracers (.win[i])
 // and an instance of the workspace explorer (.wse) defined in wse.js
 // manages the language bar, its tooltips, and the insertion of characters
-// processes incoming RIDE protocol messages
+// processes incoming Ride protocol messages
 D.IDE = function IDE(opts = {}) {
   const ide = this;
   I.cn.hidden = 1;
@@ -109,13 +110,13 @@ D.IDE = function IDE(opts = {}) {
     while (mq.length && !blk) {
       const a = mq.shift(); // a[0]:command name, a[1]:command args
       if (a[0] === 'AppendSessionOutput') { // special case: batch sequences of AppendSessionOutput together
-        let s = a[1].result;
+        const so = a[1];
+        const s = [{ text: so.result, group: so.group || 0, type: so.type || 0 }];
         const nq = Math.min(mq.length, 256);
-        if (typeof s === 'object') { s = s.join('\n'); ide.bannerDone = 0; }
         let i;
         for (i = 0; i < nq && mq[i][0] === 'AppendSessionOutput'; i++) {
-          const r = mq[i][1].result;
-          s += typeof r === 'string' ? r : r.join('\n');
+          const r = mq[i][1];
+          s.push({ text: r.result, group: r.group || 0, type: r.type || 0 });
         }
         i && mq.splice(0, i);
         ide.wins[0].add(s);
@@ -136,9 +137,7 @@ D.IDE = function IDE(opts = {}) {
   D.recv = (x, y) => { mq.push([x, y]); rrd(); };
   ide.block = () => { blk += 1; };
   ide.unblock = () => { (blk -= 1) || rrd(); };
-  ide.tracer = () => {
-    return ide.getMRUWin(1);
-  };
+  ide.tracer = () => ide.getMRUWin(1);
   [{ comp_name: 'wse', prop_name: 'WSEwidth' }, { comp_name: 'dbg', prop_name: 'DBGwidth' }].forEach((obj) => {
     Object.defineProperty(ide, obj.prop_name, {
       get() {
@@ -238,8 +237,6 @@ D.IDE = function IDE(opts = {}) {
   I.lb_prf.onmouseout = I.lb_tip.onmouseout;
   I.lb_prf.onmousedown = () => { D.prf_ui('shc'); return !1; };
   I.lb_prf.onclick = () => !1; // prevent # from appearing in the URL bar
-  I.sb_prf.onmousedown = () => { D.prf_ui(); return !1; };
-  I.sb_prf.onclick = () => !1; // prevent # from appearing in the URL bar
   $(I.lb_inner).sortable({
     forcePlaceholderSize: 1,
     placeholder: 'lb_placeholder',
@@ -487,35 +484,42 @@ D.IDE = function IDE(opts = {}) {
   // OSX is stealing our focus.  Let's steal it back!  Bug #5
   D.mac && !ide.floating && setTimeout(() => { ide.wins[0].focus(); }, 500);
   D.prf.lineNums((x) => {
-    eachWin(w => w.setLN && w.setLN(x));
+    eachWin((w) => w.setLN && w.setLN(x));
     updMenu();
   });
   D.prf.breakPts((x) => {
-    eachWin(w => w.setBP && w.setBP(x));
+    eachWin((w) => w.setBP && w.setBP(x));
     updMenu();
   });
   D.prf.wrap(() => { updMenu(); });
-  D.prf.blockCursor((x) => { eachWin(w => !w.bwId && w.blockCursor(!!x)); });
-  D.prf.cursorBlinking((x) => { eachWin(w => !w.bwId && w.cursorBlinking(x)); });
-  D.prf.renderLineHighlight((x) => { eachWin(w => !w.bwId && w.renderLineHighlight(x)); });
-  D.prf.autocompletion((x) => { eachWin(w => !w.bwId && w.autocompletion(x === 'classic')); });
-  D.prf.autocompletionDelay((x) => { eachWin(w => !w.bwId && w.autocompletionDelay(x)); });
-  D.prf.minimapEnabled((x) => { eachWin(w => !w.bwId && w.minimapEnabled(!!x)); });
-  D.prf.minimapRenderCharacters((x) => { eachWin(w => !w.bwId && w.minimapRenderCharacters(!!x)); });
-  D.prf.minimapShowSlider((x) => { eachWin(w => !w.bwId && w.minimapShowSlider(x)); });
-  D.prf.pauseOnError((x) => { 
+  D.prf.blockCursor((x) => { eachWin((w) => !w.bwId && w.blockCursor(!!x)); });
+  D.prf.cursorBlinking((x) => { eachWin((w) => !w.bwId && w.cursorBlinking(x)); });
+  D.prf.renderLineHighlight((x) => { eachWin((w) => !w.bwId && w.renderLineHighlight(x)); });
+  D.prf.autocompletion((x) => { eachWin((w) => !w.bwId && w.autocompletion(x === 'classic')); });
+  D.prf.autocompletionDelay((x) => { eachWin((w) => !w.bwId && w.autocompletionDelay(x)); });
+  D.prf.minimapEnabled((x) => { eachWin((w) => !w.bwId && w.minimapEnabled(!!x)); });
+  D.prf.minimapRenderCharacters((x) => {
+    eachWin((w) => !w.bwId && w.minimapRenderCharacters(!!x));
+  });
+  D.prf.minimapShowSlider((x) => { eachWin((w) => !w.bwId && w.minimapShowSlider(x)); });
+  D.prf.pauseOnError((x) => {
     D.send('SetConfiguration', {
-      configurations: [{ name: 'AUTO_PAUSE_THREADS', value: x ? '1': '0' }],
+      configurations: [{ name: 'AUTO_PAUSE_THREADS', value: x ? '1' : '0' }],
     });
   });
-  D.prf.selectionHighlight((x) => { eachWin(w => !w.bwId && w.selectionHighlight(x)); });
-  D.prf.showEditorToolbar((x) => { $('.ride_win.edit_trace').toggleClass('no-toolbar', !x); });
-  D.prf.snippetSuggestions((x) => { eachWin(w => !w.bwId && w.snippetSuggestions(x)); });
+  D.prf.selectionHighlight((x) => { eachWin((w) => !w.bwId && w.selectionHighlight(x)); });
+  D.prf.showSessionMargin((x) => { !ide.floating && ide.wins['0'].showSessionMargin(x); });
+  D.prf.showEditorToolbar((x) => {
+    $('.ride_win.edit_trace').toggleClass('no-toolbar', !x);
+    updTopBtm();
+  });
+  D.prf.snippetSuggestions((x) => { eachWin((w) => !w.bwId && w.snippetSuggestions(x)); });
   D.prf.zoom(ide.zoom.bind(ide));
 
-  ide.handlers = { // for RIDE protocol messages
+  ide.handlers = { // for Ride protocol messages
     Identify(x) {
       D.remoteIdentification = x;
+      D.apiVersion = x.apiVersion || 0;
       D.isClassic = x.arch[0] === 'C';
       if (D.isClassic) {
         Object.keys(D.bq).forEach((k) => {
@@ -527,14 +531,17 @@ D.IDE = function IDE(opts = {}) {
           if (D.syntax.sysfns_classic.includes(sysfn)) p.text = `⎕${sysfn}`;
         });
       }
-      
       D.InitHelp(x.version);
       ide.updTitle();
       ide.connected = 1;
       ide.updPW();
       clearTimeout(D.tmr);
       delete D.tmr;
+      if (D.apiVersion > 0) {
+        D.send('GetLog', { format: 'json' });
+      }
     },
+    ReplyIdentify(x) { ide.handlers.Identify(x); },
     InvalidSyntax() { $.err('Invalid syntax.', 'Interpreter error'); },
     Disconnect(x) {
       const m = x.message.toLowerCase(); ide.die();
@@ -544,14 +551,21 @@ D.IDE = function IDE(opts = {}) {
       } else { $.err(x.message, 'Interpreter disconnected'); }
     },
     SysError(x) { $.err(x.text, 'SysError'); ide.die(); },
-    InternalError(x) { $.err(`An error (${x.error}) occurred processing ${x.message}`, 'Internal Error'); },
+    InternalError(x) { $.err(`An error (${x.error_text || x.error}) occurred processing ${x.message}`, 'Internal Error'); },
     NotificationMessage(x) { $.alert(x.message, 'Notification'); },
     UpdateDisplayName(x) {
       ide.wsid = x.displayName;
       ide.updTitle();
       ide.wse && ide.wse.refresh();
     },
-    EchoInput(x) { ide.wins[0].add(x.input, 1); },
+    UpdateSessionCaption(x) {
+      ide.sessionCaption = x.text;
+      ide.updTitle();
+      ide.wse && ide.wse.refresh();
+    },
+    EchoInput(x) {
+      ide.wins[0].add([{ text: x.input, group: x.group || 0, type: x.type || 14 }], 1);
+    },
     SetPromptType(x) {
       const t = x.type;
       ide.promptType = t;
@@ -559,11 +573,11 @@ D.IDE = function IDE(opts = {}) {
       if (t && ide.pending.length) {
         D.send('Execute', { trace: 0, text: `${ide.pending.shift()}\n` });
         ide.wins[0].prompt(t);
-      } else eachWin((w) => { w.prompt(t); });      
+      } else eachWin((w) => { w.prompt(t); });
       (t === 2 || t === 4) && ide.wins[0].focus(); // ⎕ / ⍞ input
       if (t === 1) {
-         ide.getStats();
-         ide.wse && ide.wse.refresh();
+        ide.getStats();
+        ide.wse && ide.wse.refresh();
       }
       if (t === 1 && ide.bannerDone === 0) {
         // arrange for the banner to appear at the top of the session window
@@ -596,7 +610,7 @@ D.IDE = function IDE(opts = {}) {
     WindowTypeChanged(x) { return ide.wins[x.win].setTC(x.tracer); },
     ReplyGetAutocomplete(x) { const w = ide.wins[x.token]; w && w.processAutocompleteReply(x); },
     ReplyGetHelpInformation(x) {
-      if (x.url.length === 0) ide.getHelpExecutor.reject('No help found');
+      if (x.url.length === 0) ide.getHelpExecutor.reject({ supported: true, msg: 'No help found' });
       else ide.getHelpExecutor.resolve(x.url);
     },
     ReplyGetLanguageBar(x) {
@@ -608,7 +622,7 @@ D.IDE = function IDE(opts = {}) {
             `${k.name} (${k.avchar})`,
             k.helptext.join('\n'),
           ];
-          D.sqglDesc[k.avchar] = `${k.name} (${k.avchar})`;
+          D.sqglDesc[k.avchar] = k.name;
         }
       });
       ide.lbarRecreate();
@@ -618,12 +632,12 @@ D.IDE = function IDE(opts = {}) {
       D.ipc && D.ipc.server.broadcast('syntax', D.syntax);
     },
     ValueTip(x) {
-      const req = ide.valueTipRequests[x.token]
+      const req = ide.valueTipRequests[x.token];
       if (!req) return;
       if (req.source === 'monaco') {
-        ide.wins[req.id].ValueTip(x); 
+        ide.wins[req.id].ValueTip(x);
       } else if (req.source === 'wse') {
-        ide.wse.valueTip(req.id, x); 
+        ide.wse.valueTip(req.id, x);
       } else {
         console.log(`unknown source: ${req.source}`);
       }
@@ -631,7 +645,7 @@ D.IDE = function IDE(opts = {}) {
     },
     SetHighlightLine(x) {
       const w = D.wins[x.win];
-      w.SetHighlightLine(x.line, ide.hadErr);
+      w.SetHighlightLine(ide.hadErr, x.line + 1, x.end_line + 1, x.start_col + 1, x.end_col + 1);
       ide.hadErr > 0 && (ide.hadErr -= 1);
       D.prf.wse() && ide.wse.refresh();
       ide.focusWin(w);
@@ -700,7 +714,7 @@ D.IDE = function IDE(opts = {}) {
       } else if (D.elw && !D.elw.isFocused()) D.elw.focus();
       if (done) return;
       const ed = new D.Ed(ide, editorOpts);
-      ed.focusTS =  +new Date();
+      ed.focusTS = +new Date();
       ide.wins[w] = ed;
       ed.me_ready.then(() => {
         ed.open(ee);
@@ -708,7 +722,7 @@ D.IDE = function IDE(opts = {}) {
       });
       // add to golden layout:
       const tc = !!ee.debugger;
-      const bro = gl.root.getComponentsByName('win').filter(x => x.id && tc === !!x.tc)[0]; // existing editor
+      const bro = gl.root.getComponentsByName('win').filter((x) => x.id && tc === !!x.tc)[0]; // existing editor
       let p;
       if (bro) { // add next to existing editor
         p = bro.container.parent.parent;
@@ -749,8 +763,13 @@ D.IDE = function IDE(opts = {}) {
           w = ide.w3500;
         }
         D.elm.enable(w.webContents);
-        w.loadURL(`file://${__dirname}/empty.html`);
-        w.webContents.executeJavaScript(`document.body.innerHTML=${JSON.stringify(x.html)}`);
+        const fs = nodeRequire('fs');
+        const path = nodeRequire('path');
+        const file = path.join(D.el.app.getPath('temp'), 'ib3500.html');
+        fs.existsSync(file) && fs.rmSync(file, { force: true });
+        const html = `<?xml version="1.0" encoding="UTF-8"?>${x.html}`;
+        fs.writeFileSync(file, html, { encoding: 'utf8' });
+        w.loadURL(`file://${file}`);
         w.setTitle(x.title || '3500 I-beam');
       } else {
         const init = () => {
@@ -833,12 +852,25 @@ D.IDE = function IDE(opts = {}) {
       D.ipc.server.emit(D.stw_bw.socket, 'add', x);
       !D.prf.statusWindow() && D.prf.autoStatus() && D.prf.statusWindow(1);
     },
-    ReplyGetLog(x) { ide.wins[0].add(x.result.join('\n')); ide.bannerDone = 0; },
+    ReplyGetLog(x) {
+      let lines;
+      if (typeof x.result[0] === 'string') {
+        lines = x.result.map((t) => ({ text: `${t}\n`, group: 0, type: 0 }));
+        if (lines[lines.length - 1].text === '\n') lines.pop();
+      } else {
+        lines = x.result.map((l) => ({ text: `${l.text}\n`, group: l.group, type: l.type }));
+      }
+      ide.wins[0].add(lines, 2);
+      ide.bannerDone = 0;
+    },
+    SetSessionLineGroup(x) {
+      ide.wins[0].setLineGroup(x.line_offset, x.group);
+    },
     UnknownCommand(x) {
       if (x.name === 'ClearTraceStopMonitor') {
         toastr.warning('Clear all trace/stop/monitor not supported by the interpreter');
       } else if (x.name === 'GetHelpInformation') {
-        ide.getHelpExecutor.reject('GetHelpInformation not implemented on remote interpreter');
+        ide.getHelpExecutor.reject({ supported: false, msg: 'GetHelpInformation not implemented on remote interpreter' });
       } else if (x.name === 'Subscribe') {
         // flag to fallback for status updates.
         ide.hasSubscribe = false;
@@ -902,6 +934,7 @@ D.IDE.prototype = {
     const v = D.versionInfo || {};
     const [rva, rvb, rvc] = (v.version || '').split('.');
     const m = {
+      '{CAPTION}': ide.sessionCaption || ide.wsid,
       '{WSID}': ide.wsid,
       '{HOST}': ide.host,
       '{PORT}': ide.port,
@@ -951,7 +984,7 @@ D.IDE.prototype = {
   },
   zoom(z) {
     const b = this.dom.ownerDocument.body;
-    b.className = `zoom${z} ${b.className.split(/\s+/).filter(s => !/^zoom-?\d+$/.test(s)).join(' ')}`;
+    b.className = `zoom${z} ${b.className.split(/\s+/).filter((s) => !/^zoom-?\d+$/.test(s)).join(' ')}`;
     this.gl.container.resize();
     if (this.floating) {
       D.ipc.of.ride_master.emit('zoom', z);
