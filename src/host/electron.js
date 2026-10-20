@@ -100,10 +100,38 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
       Math.round(width),
       Math.round(height),
     )),
-    setMinSize: onWin((w, width, height) => w.setMinimumSize(width, height)),
+    setMinSize: onWin((w, width, height) => { // content size; Electron's minimum is the frame's
+      const [ow, oh] = w.getSize();
+      const [cw, ch] = w.getContentSize();
+      w.setMinimumSize(Math.round(width + ow - cw), Math.round(height + oh - ch));
+    }),
     getBounds: onWin((w) => w.getContentBounds()),
     setBounds: onWin((w, b) => w.setContentBounds(b)),
     displayFor: (b) => Promise.resolve(remote.screen.getDisplayMatching(b).workArea),
+    // {width, height} the frame adds to the content
+    frame: onWin((w) => {
+      const [ow, oh] = w.getSize();
+      const [cw, ch] = w.getContentSize();
+      return { width: ow - cw, height: oh - ch };
+    }),
+    center: onWin((w) => w.center()),
+    isMaximized: onWin((w) => w.isMaximized()),
+    isMinimized: onWin((w) => w.isMinimized()),
+    maximize: onWin((w) => w.maximize()),
+    unmaximize: onWin((w) => w.unmaximize()),
+    // fn(): the window moved, resized, maximised or was restored. Current window only.
+    // Resolves an unsubscribe function.
+    onBoundsChanged(l, fn) {
+      if (l !== label) {
+        return Promise.reject(Object.assign(new Error('Current window only'), { code: 'ENOTSUP' }));
+      }
+      const evs = ['move', 'resize', 'maximize', 'unmaximize'];
+      const f = () => fn();
+      const off = () => evs.forEach((e) => cur.removeListener(e, f));
+      evs.forEach((e) => cur.on(e, f));
+      window.addEventListener('unload', off);
+      return Promise.resolve(off);
+    },
     // fn() → boolean or Promise<boolean>: whether the window may close. Electron offers
     // no async veto, so this always vetoes and closes again once fn agrees. Current
     // window only.
@@ -120,7 +148,8 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
         Promise.resolve(r).then((ok) => {
           if (!ok) return;
           allowed = true;
-          cur.close();
+          // a close issued in the same turn as the veto is ignored
+          setTimeout(() => cur.close(), 0);
         }, (x) => console.error(x)); // eslint-disable-line no-console
         return false;
       };
@@ -169,6 +198,7 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
       });
     }),
     toggleDevTools: onWin((w) => w.webContents.toggleDevTools()),
+    isDevToolsOpen: onWin((w) => w.webContents.isDevToolsOpened()),
     print: onWin((w) => w.webContents.print({ printBackground: true })),
     openExternal: (url) => remote.shell.openExternal(url),
     clipboard: {
@@ -200,12 +230,13 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
   const path = nodeRequire('path');
 
   // store: files in userData. Calls are synchronous underneath, so writes keep their
-  // order and land before the page can unload. winstate belongs to main.js, which
-  // writes it out: here it reads and updates main's live copy.
+  // order and land before the page can unload.
   const ud = D.el.app.getPath('userData');
+  const penv = D.el.process.env;
   const files = {
-    prefs: D.el.process.env.RIDE_PREFS || `${ud}/prefs.json`,
+    prefs: penv.RIDE_PREFS || `${ud}/prefs.json`,
     connections: `${ud}/connections.json`,
+    winstate: `${ud}/${penv.RIDE_CONF || 'winstate'}.json`,
     history: `${ud}/hist.txt`,
   };
   const file = (name) => {
@@ -214,19 +245,10 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
   };
   const mtime = (f) => (fs.existsSync(f) ? +fs.statSync(f).mtime : null);
   const read = (name) => {
-    if (name === 'winstate') return { text: JSON.stringify(D.el.getGlobal('winstate')), mtime: null };
     const f = file(name);
     return fs.existsSync(f) ? { text: fs.readFileSync(f, 'utf8'), mtime: mtime(f) } : null;
   };
   const write = (name, text) => {
-    if (name === 'winstate') {
-      const w = D.el.getGlobal('winstate');
-      const x = JSON.parse(text);
-      Object.keys(x).forEach((k) => {
-        JSON.stringify(x[k]) !== JSON.stringify(w[k]) && (w[k] = x[k]);
-      });
-      return null;
-    }
     const f = file(name);
     fs.writeFileSync(f, text);
     return mtime(f);
@@ -240,7 +262,7 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
     snapshot: (name) => (name === 'prefs' ? prefs : undefined),
     read: promise(read),
     write: promise(write),
-    mtime: promise((name) => (name === 'winstate' ? null : mtime(file(name)))),
+    mtime: promise((name) => mtime(file(name))),
   };
 
   // dlg: native dialogs, modal to the app's focused window.

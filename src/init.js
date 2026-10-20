@@ -217,7 +217,15 @@ const Console = console;
         }
       };
     } else if (D.host.win.current() === 'main') {
-      D.host.win.onCloseRequested('main', mayClose);
+      // Save the window's bounds once it may close.
+      D.host.win.onCloseRequested('main', () => {
+        const r = mayClose();
+        if (r === false || !D.winstate) return r;
+        return Promise.resolve(r).then((ok) => ok && D.winstate.flush().then(() => true, (e) => {
+          console.error(e); // eslint-disable-line no-console
+          return true;
+        }));
+      });
     }
 
     let platform = '';
@@ -299,5 +307,5 @@ const Console = console;
     }
   };
 
-  Promise.all([D.mop, D.host && D.host.ready]).then(() => init());
+  Promise.all([D.mop, D.host && D.host.ready, D.winstate && D.winstate.ready]).then(() => init());
 }

@@ -8,6 +8,15 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
   D.desktop = true;
   const { invoke, Channel } = window.__TAURI__.core;
 
+  // WebView2's browser accelerators reload the page on F5 and Ctrl-R, dropping the
+  // session with no prompt; Electron offers no reload, so neither does Tauri. RIDE's own
+  // handlers still see the keys.
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && !e.altKey && /^r$/i.test(e.key))) {
+      e.preventDefault();
+    }
+  }, true);
+
   // store: files in the data folder shared with Electron (src-tauri/src/store.rs).
   // prefs is preloaded behind D.host.ready, for D.db's synchronous facade.
   const snap = {};
@@ -54,6 +63,7 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
       env: Object.fromEntries(Object.entries(e).map(([k, v]) => [k, `${v}`])),
     }),
     toggleDevTools: (l) => call('sys_toggle_devtools', { label: l }),
+    isDevToolsOpen: (l) => call('sys_is_devtools_open', { label: l }),
     print: (l) => call('sys_print', { label: l }),
     openExternal: (url) => call('plugin:opener|open_url', { url }),
     clipboard: {
@@ -218,6 +228,21 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
     getBounds: onWin(contentBounds),
     setBounds: onWin(setContentBounds),
     displayFor: (b) => displayFor(b).catch((e) => { throw winError(e); }),
+    // {width, height} the frame adds to the content
+    frame: onWin((w) => Promise.all([w.outerSize(), w.innerSize(), w.scaleFactor()])
+      .then(([o, i, f]) => ({
+        width: Math.round((o.width - i.width) / f),
+        height: Math.round((o.height - i.height) / f),
+      }))),
+    center: onWin((w) => w.center()),
+    isMaximized: onWin((w) => w.isMaximized()),
+    isMinimized: onWin((w) => w.isMinimized()),
+    maximize: onWin((w) => w.maximize()),
+    unmaximize: onWin((w) => w.unmaximize()),
+    // fn(): the window moved, resized, maximised or was restored. Resolves an
+    // unsubscribe function.
+    onBoundsChanged: onWin((w, fn) => Promise.all([w.onMoved(() => fn()), w.onResized(() => fn())])
+      .then((us) => () => us.forEach((u) => u()))),
     // fn() → boolean or Promise<boolean>: whether the window may close.
     onCloseRequested: (l, fn) => winOf(l).then((w) => w.onCloseRequested((e) => Promise.resolve()
       .then(fn)

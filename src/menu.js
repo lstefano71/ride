@@ -54,6 +54,7 @@ D.installMenu = function Menu(mx) {
       x.checkBoxPref ? x.action(checked) : x.action();
     };
     D.host.menu.setApp(template, onClick).then((m) => {
+      D.winstate && D.winstate.menuSet();
       prefs.forEach(([id, p]) => {
         gen === menuGen && m.setChecked(id, !!p());
         p((v) => { gen === menuGen && m.setChecked(id, !!v); });

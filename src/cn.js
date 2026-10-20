@@ -336,7 +336,7 @@
   const initInterpreterConn = (c) => {
     clt = c;
     hideDlgs();
-    D.el && nodeRequire('electron').ipcRenderer.send('save-win', false);
+    D.winstate && D.winstate.layout('mainWin');
     let old; // old:have we warned about an old interpreter?
     let handshakeDone = false;
     c.onMessage((m) => {
@@ -755,10 +755,9 @@
   const showPage = () => { // set up Connect page
     q = J.cn;
     I.cn.hidden = 0;
-    // Launch-window layout: main.js's winstate in Electron, defaults elsewhere until
-    // window bounds move onto D.host.win
-    const winstate = D.el ? D.el.getGlobal('winstate')
-      : { dx: 0, launchWin: { expandedWidth: 900, width: 400, expanded: true } };
+    // Launch-window layout (src/winstate.js); defaults where there is none
+    const winstate = D.winstate ? D.winstate.db
+      : { launchWin: { expandedWidth: 900, width: 400, expanded: true } };
     if (!D.el) { // starting, listening and SSH are Electron-only
       [q.type, q.subtype].forEach((s) => {
         [...s.options].filter((o) => /^(start|listen|ssh)$/.test(o.value)).forEach((o) => o.remove());
@@ -955,16 +954,17 @@
     // };
     const toggleConfig = (show) => {
       const expanded = (show === undefined) ? !$(q.rhs).is(':visible') : !!show;
-      winstate.launchWin.expanded = expanded;
-      if (D.el) {
-        const { height } = D.elw.getContentBounds();
-        const newWidth = expanded ? winstate.launchWin.expandedWidth : winstate.launchWin.width;
-        const minwidth = winstate.dx + (expanded ? 885 : 400);
-        D.elw.setMinimumSize(minwidth, 400);
-        D.elw.setContentSize(newWidth, height);
+      const lw = winstate.launchWin;
+      lw.expanded = expanded;
+      if (D.winstate) {
+        const { win } = D.host;
+        win.getBounds('main')
+          .then((b) => win.setMinSize('main', expanded ? 885 : 400, 400)
+            .then(() => win.setContentSize('main', expanded ? lw.expandedWidth : lw.width, b.height)))
+          .then(() => D.winstate.layout('launchWin'))
+          .catch((e) => console.error(e)); // eslint-disable-line no-console
       }
-      setTimeout(() => { I.cn.toggleMaximize(expanded ? winstate.launchWin.width : 0); }, 10);
-      D.el && nodeRequire('electron').ipcRenderer.send('save-win', true);
+      setTimeout(() => { I.cn.toggleMaximize(expanded ? lw.width : 0); }, 10);
     };
     toggleConfig(winstate.launchWin.expanded);
     $(q.favs).list().sortable({

@@ -36,6 +36,7 @@ pub fn run() {
             store::store_mtime,
             sys::sys_relaunch,
             sys::sys_toggle_devtools,
+            sys::sys_is_devtools_open,
             sys::sys_print,
             fs::fs_read_text,
             fs::fs_write_text,

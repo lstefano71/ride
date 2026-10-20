@@ -94,6 +94,11 @@ pub fn sys_toggle_devtools<R: Runtime>(app: AppHandle<R>, label: String) -> Resu
 }
 
 #[tauri::command]
+pub fn sys_is_devtools_open<R: Runtime>(app: AppHandle<R>, label: String) -> Result<bool, String> {
+    Ok(window(&app, &label)?.is_devtools_open())
+}
+
+#[tauri::command]
 pub fn sys_print<R: Runtime>(app: AppHandle<R>, label: String) -> Result<(), String> {
     window(&app, &label)?.print().map_err(|e| e.to_string())
 }
