@@ -25,6 +25,10 @@ _Avoid_: bridge, backend
 **Floating window**:
 An editor or tool window shown as its own OS window rather than docked in the main window.
 
+**Window label**:
+The stable name of one OS window of RIDE (the main window, the preferences window, a floating editor, …), used to address it when windows exchange messages.
+_Avoid_: socket, window id
+
 ## Relationships
 
 - A **Shell** hosts exactly one **Frontend** and provides one **Host adapter**.

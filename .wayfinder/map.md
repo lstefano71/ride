@@ -31,12 +31,11 @@ RIDE runs as a Tauri v2 app built from the `tauri-port` branch: it connects over
 - [Inventory Electron and Node usage in the frontend](tickets/001-inventory-electron-node-usage.md): [inventory asset](assets/electron-inventory.md); shallow but wide, the main cost is sync dialogs and storage, `D.el` doubles as a desktop flag, the `node-ipc` vocabulary is closed, and four `userData` files exist.
 - [Run the Electron RIDE against Dyalog 20 as a baseline](tickets/002-baseline-electron-against-dyalog20.md): works; scripted CDP smoke check (session, editor, tracer, floating) all pass; Electron install needs a manual workaround on Node 26/npm 12; lint isn't a usable gate.
 - [Scaffold a Tauri v2 shell that loads the existing frontend](tickets/006-scaffold-tauri-shell.md): `src-tauri/` renders the untouched frontend with no Node (7.02 MB release exe); assets are staged into `_/tauri-frontend` with `node_modules` renamed to `vendor/`; without `D.el` it falls into browser mode and its WebSocket fails harmlessly.
+- [Design the host adapter interface](tickets/007-design-host-adapter.md): one async-only `D.host` (areas `conn/win/ipc/menu/dlg/store/sys/fs`) implemented by both shells ([ADR 0001](../docs/adr/0001-async-host-adapter.md)); `D.desktop` replaces `D.el` as a flag; windows addressed by label; one migration ticket per area, built and smoke-checked in both shells.
 
 ## Not yet specified
 
-- **Wiring the frontend to the host adapter in the Electron shell.** Shape depends on the host-adapter design; probably several tickets split by area (windows, menus, prefs, file IO).
-- **Tauri implementation of each adapter area** beyond the connection: menus and context menus, dialogs, clipboard, open-external, zoom, devtools. The inventory adds printing (`webContents.print`), relaunch for "New Session", drag-and-drop `.dws` (no `File.path`), the auxiliary windows (About, protocol log, 3500⌶ HTML, status, the String/Task dialog), `RIDE_EDITOR` external editing, and the `RIDE_JS`/`RIDE_CSS`/`RIDE_DEMO_SCRIPT` env hooks.
-- **Window bounds and layouts.** Porting `main.js`'s two-layout bounds save/restore (the window-state plugin doesn't fit).
+- **Window bounds and layouts.** Porting `main.js`'s two-layout bounds save/restore (the window-state plugin doesn't fit) and the launch↔main layout switch (`save-win`, `toggleConfig`) onto `D.host.win`.
 - **Packaging and size.** Bundle config per platform (bundling is off in the scaffold), Linux WebKitGTK quirks (IME, fonts, NVIDIA flicker), macOS paste prompt. The bare Windows exe is 7 MB, so size is a check to repeat, not work to do.
 - **Build integration.** Staging (`npm run tauri:stage`) already feeds Grunt/LESS output into Tauri. Still open: restaging during `tauri dev` without a manual step, and whether CI is touched at all.
 
@@ -45,3 +44,4 @@ RIDE runs as a Tauri v2 app built from the `tauri-port` branch: it connects over
 - **Spawning an interpreter, listen mode, SSH connections.** Not needed for the experiment.
 - **Windows APL IME installer** (`windows-ime/`). Installer component, not app functionality.
 - **Browser mode** (interpreter serving RIDE over HTTP). Not a constraint; may break.
+- **`RIDE_EDITOR` external editing, `DEV_STYLE` live reload, spectron test hooks** (`global.js`, `spectron_temp_dir`, `NODE_ENV==='test'`). `RIDE_EDITOR` needs process spawn; the others are dev tooling that CDP smoke replaces. Ruled out in [Design the host adapter interface](tickets/007-design-host-adapter.md).
