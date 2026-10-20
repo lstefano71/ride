@@ -15,7 +15,7 @@ RIDE runs as a Tauri v2 app built from the `tauri-port` branch: it connects over
 - **One frontend, two shells.** Electron and Tauri shells both run the same frontend behind a host adapter (see `CONTEXT.md`). If keeping Electron alive becomes a burden, switch to Tauri-only: record that as a decision, don't drift into it.
 - **Thin Rust.** Rust owns sockets and framing only; RIDE protocol logic stays in JS.
 - **Dependency upgrades** (Monaco 0.31, jQuery, Grunt/LESS) are avoided by default, allowed when they block progress. Upstream is wary of Monaco upgrades breaking things, so call out any upgrade in the resolution.
-- **Verification per build ticket:** `cargo build` and `npm run lint` pass, plus a manual smoke check against a live interpreter.
+- **Verification per build ticket:** `cargo build` passes, `npx eslint` reports no new problems in touched files (`master` has ~1800 and no lint script, so a clean run isn't the bar), plus a smoke check against a live interpreter: [smoke-cdp.js](assets/smoke-cdp.js) over CDP, then a manual look.
 - **Interpreter:** Dyalog 20 at `d:\devel\dyalog\20.0` (`dyalog.exe`). The user can supply an installed official RIDE for comparison on request. Skills: `dyalog-ride` / `dyalog-apl-runner` for interpreter work.
 - **Commits:** one commit per resolved ticket on `tauri-port`; no pushes until the user picks a remote.
 - **Packaging targets:** Windows single exe (WebView2 runtime assumed present, size goal applies here only), macOS `.app`/`.dmg`, Linux AppImage/`.deb`.
@@ -29,7 +29,7 @@ RIDE runs as a Tauri v2 app built from the `tauri-port` branch: it connects over
 - [Research Tauri v2 coverage of RIDE's Electron features](tickets/004-research-tauri-api-coverage.md): no blockers; main costs are async-everything, dialog/menu small gaps, data-folder relocation; about 2.7 MiB base exe, so under 20 MB is realistic.
 - [Research TLS connections in Rust for RIDE](tickets/005-research-tls-connect.md): rustls with a custom CN verifier works against Dyalog 20 (2–4 days); today's TLS option is silently dead in `cn.js`.
 - [Inventory Electron and Node usage in the frontend](tickets/001-inventory-electron-node-usage.md): [inventory asset](assets/electron-inventory.md); shallow but wide, the main cost is sync dialogs and storage, `D.el` doubles as a desktop flag, the `node-ipc` vocabulary is closed, and four `userData` files exist.
-
+- [Run the Electron RIDE against Dyalog 20 as a baseline](tickets/002-baseline-electron-against-dyalog20.md): works; scripted CDP smoke check (session, editor, tracer, floating) all pass; Electron install needs a manual workaround on Node 26/npm 12; lint isn't a usable gate.
 ## Not yet specified
 
 - **Wiring the frontend to the host adapter in the Electron shell.** Shape depends on the host-adapter design; probably several tickets split by area (windows, menus, prefs, file IO).
