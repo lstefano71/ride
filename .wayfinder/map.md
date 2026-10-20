@@ -47,15 +47,17 @@ RIDE runs as a Tauri v2 app built from the `tauri-port` branch: it connects over
 - [Port window bounds and the launch/main layout switch onto D.host.win](tickets/020-window-bounds-layouts.md): one shared `src/winstate.js` replaces `main.js`'s bounds code in both shells, with the same `winstate.json` meaning, read across shells. The window is shown after the first menu, which ends a height creep from `master`. A deferred re-close fixes Electron's async close veto. Tauri blocks the F5/Ctrl-R reload instead of confirming it. [bounds-cdp.js](assets/bounds-cdp.js) passes 48/48. Exe 8.77 MB.
 - [Bundle the Tauri RIDE for Windows](tickets/021-windows-bundle.md): the deliverable is the bare, portable `ride.exe` (8.77 MB, no side files). No Tauri installer is built. Its version is `4.8.<commit count>`, as in `mk` and About, injected by `src-tauri/tauri-cli.js`. CompanyName is now Dyalog Ltd. It runs under a fresh user profile, and smoke passes 7/7.
 - [Restage the frontend automatically during tauri dev](tickets/022-tauri-dev-restage.md): `tauri:dev` stages before Tauri starts, then a `stage-frontend.js --watch` watcher recopies changed `src/`/`lib/`/`style/`/HTML files and recompiles `.less`, so a devtools reload shows edits. Pages don't reload on their own. The watcher exits with the app. `tauri:build` is unchanged (8.77 MB, smoke 7/7).
+- [Decide how CI builds and releases the Tauri RIDE from the fork](tickets/023-decide-ci-for-tauri.md): GitHub Actions on `lstefano71/ride` `tauri-port` (Jenkins can't reach the fork and stays untouched). One Windows job builds a portable Electron ia32 zip (`Ride.exe`) and a Tauri x64 zip (`ride.exe` + `ride.pdb`). A `tauri-v*` tag or a dispatch makes a full release whose notes list the first-parent commits. Caches move to D:.
 
 ## Not yet specified
 
 - **Packaging beyond Windows.** Bundle config for macOS `.app`/`.dmg` and Linux AppImage/`.deb`, Linux WebKitGTK quirks (IME, fonts, NVIDIA flicker), and the macOS paste prompt. This needs a way to build and run on those platforms, which this machine doesn't have. Windows ships as the bare `ride.exe` ([Bundle the Tauri RIDE for Windows](tickets/021-windows-bundle.md)).
-- **CI.** Whether CI builds the Tauri shell at all.
+- **Upstream CI.** A Tauri stage in Dyalog's `Jenkinsfile` if and when the port is offered upstream. The fork uses GitHub Actions ([Decide how CI builds and releases the Tauri RIDE from the fork](tickets/023-decide-ci-for-tauri.md)).
 
 ## Out of scope
 
 - **Windows installer for the Tauri build** (NSIS/MSI). The destination's single exe is the bare `ride.exe`; installing it is left to Dyalog's WiX scripts. Ruled out in [Bundle the Tauri RIDE for Windows](tickets/021-windows-bundle.md).
+- **macOS, Linux and Windows setup.exe builds in the fork's CI.** macOS can't be built there, Linux isn't wanted, and RIDE is effectively portable, so a setup.exe adds nothing. Ruled out in [Decide how CI builds and releases the Tauri RIDE from the fork](tickets/023-decide-ci-for-tauri.md).
 - **Spawning an interpreter, listen mode, SSH connections.** Not needed for the experiment.
 - **Windows APL IME installer** (`windows-ime/`). Installer component, not app functionality.
 - **Browser mode** (interpreter serving RIDE over HTTP). Not a constraint; may break.
