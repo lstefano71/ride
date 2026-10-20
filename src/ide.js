@@ -550,7 +550,7 @@ D.IDE = function IDE(opts = {}) {
         ide.w3500 && ide.w3500.close();
       } else { $.err(x.message, 'Interpreter disconnected'); }
     },
-    SysError(x) { $.err(x.text, 'SysError'); ide.die(); },
+    SysError(x) { $.err(x.text, 'SysError', () => ide.die()); },
     InternalError(x) { $.err(`An error (${x.error_text || x.error}) occurred processing ${x.message}`, 'Internal Error'); },
     NotificationMessage(x) { $.alert(x.message, 'Notification'); },
     UpdateDisplayName(x) {
@@ -1060,15 +1060,15 @@ D.IDE.prototype = {
         } else {
           setTimeout(() => {
             window.focus();
-            const r = D.el.dialog.showMessageBoxSync(D.el.getCurrentWindow(), {
+            D.host.dlg.message({
               title: 'Save?',
               buttons: ['Yes', 'No', 'Cancel'],
               cancelId: -1,
               message: `The object "${ed.name}" has changed.\nDo you want to save the changes?`,
+            }).then(({ button: r }) => {
+              if (r === 0) ed.EP(me);
+              else if (r === 1) ed.QT(me);
             });
-            if (r === 0) ed.EP(me);
-            else if (r === 1) ed.QT(me);
-            return '';
           }, 10);
         }
       });

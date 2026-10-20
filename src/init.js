@@ -216,12 +216,7 @@ const Console = console;
       if (D.ide && D.ide.connected && !D.ide.closing) {
         e.returnValue = false;
         setTimeout(() => {
-          let q = true;
-          if (D.prf.sqp() && !(D.el && process.env.NODE_ENV === 'test')) {
-            const msg = D.spawned ? 'Quit Dyalog APL.' : 'Disconnect from interpreter.';
-            $.confirm(`${msg} Are you sure?`, document.title, (x) => { q = x; });
-          }
-          if (q) {
+          const quit = () => {
             D.ide.closing = true;
             D.ide.w3500 && D.ide.w3500.close();
             if (D.spawned) {
@@ -232,6 +227,12 @@ const Console = console;
               D.ide.connected = 0;
               window.close();
             }
+          };
+          if (D.prf.sqp() && !(D.el && process.env.NODE_ENV === 'test')) {
+            const msg = D.spawned ? 'Quit Dyalog APL.' : 'Disconnect from interpreter.';
+            $.confirm(`${msg} Are you sure?`, document.title, (x) => { x && quit(); });
+          } else {
+            quit();
           }
         }, 10);
         return;

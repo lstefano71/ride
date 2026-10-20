@@ -68,6 +68,40 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
     mtime: promise((name) => (name === 'winstate' ? null : mtime(file(name)))),
   };
 
+  // dlg: native dialogs, modal to the app's focused window.
+  const dlgParent = () => D.el.BrowserWindow.getFocusedWindow() || D.el.getCurrentWindow();
+  D.host.dlg = {
+    fits: () => true,
+    // o: {type, title, message, buttons, defaultId, cancelId, checkbox (label), checked}
+    message(o) {
+      const opts = {
+        type: o.type || 'none',
+        title: o.title || '',
+        message: o.message,
+        buttons: o.buttons && o.buttons.length ? o.buttons : ['OK'],
+      };
+      o.defaultId != null && (opts.defaultId = o.defaultId);
+      o.cancelId != null && (opts.cancelId = o.cancelId);
+      if (o.checkbox) {
+        opts.checkboxLabel = o.checkbox;
+        opts.checkboxChecked = !!o.checked;
+      }
+      return D.el.dialog.showMessageBox(dlgParent(), opts)
+        .then((r) => ({ button: r.response, checked: !!r.checkboxChecked }));
+    },
+    // o: {title, directory, filters, defaultPath} → a path, or null if cancelled
+    open(o) {
+      const opts = {
+        title: o.title,
+        filters: o.filters || [],
+        properties: [o.directory ? 'openDirectory' : 'openFile'],
+      };
+      o.defaultPath && (opts.defaultPath = o.defaultPath);
+      return D.el.dialog.showOpenDialog(dlgParent(), opts)
+        .then((r) => (r.canceled || !r.filePaths.length ? null : r.filePaths[0]));
+    },
+  };
+
   // conn: whole RIDE messages over a socket. Each frame is a 4-byte big-endian
   // length (counting itself), the magic "RIDE", then the UTF-8 payload.
   const net = nodeRequire('net');

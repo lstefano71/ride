@@ -31,6 +31,40 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
   });
   D.host = { kind: 'tauri', ready, store };
 
+  // dlg: native dialogs (tauri-plugin-dialog, i.e. rfd). They take at most three
+  // buttons and no checkbox; fits() tells callers when to use RIDE's HTML dialog.
+  const dlgError = (e) => (e instanceof Error ? e : new Error(String(e)));
+  const fits = (o) => (o.buttons || []).length <= 3 && !o.checkbox;
+  D.host.dlg = {
+    fits,
+    // o: {type, title, message, buttons, defaultId, cancelId, checkbox (label), checked}
+    message(o) {
+      if (!fits(o)) {
+        return Promise.reject(Object.assign(new Error('Unsupported dialog'), { code: 'ENOTSUP' }));
+      }
+      const b = o.buttons && o.buttons.length ? o.buttons : ['OK'];
+      const buttons = [
+        { OkCustom: b[0] }, { OkCancelCustom: b }, { YesNoCancelCustom: b },
+      ][b.length - 1];
+      const kind = ['warning', 'error'].includes(o.type) ? o.type : 'info';
+      return invoke('plugin:dialog|message', {
+        title: o.title || '', message: o.message, kind, buttons,
+      }).then((r) => {
+        // A click returns its button's label, dismissing the dialog returns "Cancel".
+        let i = b.indexOf(r);
+        if (i < 0) i = { Ok: 0, Yes: 0, No: 1 }[r];
+        if (i == null) i = o.cancelId != null ? o.cancelId : Math.max(0, b.findIndex((y) => /^(cancel|no)$/i.test(y)));
+        return { button: i, checked: false };
+      }, (e) => { throw dlgError(e); });
+    },
+    // o: {title, directory, filters, defaultPath} → a path, or null if cancelled
+    open(o) {
+      const options = { title: o.title, directory: !!o.directory, filters: o.filters || [] };
+      o.defaultPath && (options.defaultPath = o.defaultPath);
+      return invoke('plugin:dialog|open', { options }).catch((e) => { throw dlgError(e); });
+    },
+  };
+
   const connError = (e) => (e && typeof e === 'object'
     ? Object.assign(new Error(e.message), e)
     : Object.assign(new Error(String(e)), { code: 'EIO' }));

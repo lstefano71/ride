@@ -929,18 +929,14 @@
     q.rootcertsdir_cb.onclick = () => {
       q.rootcertsdir_cb.checked && q.rootcertsdir.focus();
     };
-    const browse = (x, title, props) => {
-      if (!D.el) return !1; // file pickers reach Tauri with D.host.dlg
-      const v = D.el.dialog.showOpenDialogSync({
-        title,
-        defaultPath: x.value,
-        properties: props || [],
-      });
-      if (v) {
-        [x.value] = v;
+    const browse = (x, title, directory) => {
+      if (!D.desktop) return !1;
+      D.host.dlg.open({ title, defaultPath: x.value, directory }).then((v) => {
+        if (!v) return;
+        x.value = v;
         D.util.elastic(x);
         $(x).change();
-      }
+      }, (e) => toastr.error(`${e.name}: ${e.message}`, title));
       return !1;
     };
     q.log_dots.onclick = () => { browse(q.log, 'Protocol log'); };
@@ -948,7 +944,7 @@
     q.key_dots.onclick = () => { browse(q.key, 'Key'); };
     q.ssh_key_dots.onclick = () => { browse(q.ssh_key, 'SSH Key'); };
     q.rootcertsdir_dots.onclick = () => {
-      browse(q.rootcertsdir, 'Directory with Root Certificates', ['openDirectory']);
+      browse(q.rootcertsdir, 'Directory with Root Certificates', true);
     };
     // q.ssh_auth_type.onchange = () => {
     //   const k = q.ssh_auth_type.value === 'key';

@@ -128,24 +128,20 @@
         D.ipc.of.ride_master.emit('OWS');
         return;
       }
-      if (D.el && D.isLocalInterpreter) {
-        const x = D.el.dialog.showOpenDialogSync(D.elw, {
-          title: 'Open file',
-          filters: [],
-          properties: ['openFile'],
-        });
-        if (!x) return;
-        const [v] = x;
-        const qt = /\s/.test(v) ? '"' : '';
-        if (/\.dws$/i.test(v)) {
-          $.confirm(
-            `Run Latent Expression of ${v.replace(/^.*[\\/]/, '')}?`,
-            'Load Workspace',
-            (y) => D.ide.exec([`      )${(y ? '' : 'x')}load ${qt}${v}${qt}\n`], 0),
-          );
-        } else {
-          D.ide.exec([`      )ED ${qt}file://${v}${qt}\n`], 0);
-        }
+      if (D.desktop && D.isLocalInterpreter) {
+        D.host.dlg.open({ title: 'Open file' }).then((v) => {
+          if (!v) return;
+          const qt = /\s/.test(v) ? '"' : '';
+          if (/\.dws$/i.test(v)) {
+            $.confirm(
+              `Run Latent Expression of ${v.replace(/^.*[\\/]/, '')}?`,
+              'Load Workspace',
+              (y) => D.ide.exec([`      )${(y ? '' : 'x')}load ${qt}${v}${qt}\n`], 0),
+            );
+          } else {
+            D.ide.exec([`      )ED ${qt}file://${v}${qt}\n`], 0);
+          }
+        }, (e) => toastr.error(`${e.name}: ${e.message}`, 'Open failed'));
       }
     },
     NEW() {

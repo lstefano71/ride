@@ -102,17 +102,18 @@
     },
     optionsDialog(x, f) {
       let text = typeof x.text === 'string' ? x.text : x.text.join('\n');
-      if (D.el) {
-        const { bwId } = D.ide.focusedWin;
-        const bw = bwId ? D.el.BrowserWindow.fromId(bwId) : D.elw;
-        const r = D.el.dialog.showMessageBoxSync(bw, {
-          message: text,
-          title: x.title || '',
-          buttons: x.options || [''],
-          cancelId: -1,
-          type: ['warning', 'info', 'question', 'error'][x.type - 1],
+      const o = {
+        message: text,
+        title: x.title || '',
+        buttons: x.options || [''],
+        cancelId: -1,
+        type: ['warning', 'info', 'question', 'error'][x.type - 1],
+      };
+      if (D.host && D.host.dlg && D.host.dlg.fits(o)) {
+        D.host.dlg.message(o).then((r) => f(r.button), (e) => {
+          console.error(e); // eslint-disable-line no-console
+          f(-1);
         });
-        f(r);
       } else {
         text = text.replace(/\r?\n/g, '<br>');
         I.gd_title_text.textContent = x.title || '';
@@ -215,24 +216,26 @@
         f(response);
         return;
       }
-      if (D.el && D.win) {
-        const { bwId } = D.ide.focusedWin;
-        const bw = bwId ? D.el.BrowserWindow.fromId(bwId) : D.elw;
-        D.el.dialog.showMessageBox(bw, {
-          message: `${x.text}\n${x.subtext}`,
-          title: x.title || '',
-          buttons: x.options.concat(x.buttonText) || [''],
-          checkboxLabel: x.questionlabel,
-          checkboxChecked: false,
-          type: 'question',
-        }).then((result) => {
-          const r = result.response;
+      const o = {
+        message: `${x.text}\n${x.subtext}`,
+        title: x.title || '',
+        buttons: x.options.concat(x.buttonText) || [''],
+        checkbox: x.questionlabel,
+        checked: false,
+        type: 'question',
+      };
+      if (D.win && D.host && D.host.dlg && D.host.dlg.fits(o)) {
+        D.host.dlg.message(o).then((result) => {
+          const r = result.button;
           const index = r < x.options.length ? r : 100 + (r - x.options.length);
-          if (result.checkboxChecked) {
-             conf[x.questionkey] = index;
-             D.prf.confirmations(conf);
+          if (result.checked) {
+            conf[x.questionkey] = index;
+            D.prf.confirmations(conf);
           }
           f(index);
+        }, (e) => {
+          console.error(e); // eslint-disable-line no-console
+          f(-1);
         });
         return;
       } else if (D.dlg_bw) {
@@ -299,22 +302,30 @@
       setTimeout(() => { fb.focus(); }, 1);
     },
   };
+  // Native message box through D.host.dlg where there is one, else the browser's.
+  // Asynchronous: callbacks run once the dialog is closed.
+  const msgBox = (o, fallback) => {
+    const { host } = D;
+    if (!host || !host.dlg) return Promise.resolve(fallback());
+    return host.dlg.message(o).then((r) => r.button, (e) => {
+      console.error(e); // eslint-disable-line no-console
+      return fallback();
+    });
+  };
   $.alert = (m, t, f) => { // m:message,t:title,f:callback
-    D.el ? D.el.dialog.showMessageBoxSync(D.elw, { message: m, title: t, buttons: ['OK'] }) : alert(m);
-    f && f();
+    msgBox({ message: m, title: t, buttons: ['OK'] }, () => alert(m))
+      .then(() => f && f());
   };
   $.err = (m, t, f) => {
     if (typeof t === 'function') { f = t; t = ''; }
     t = t || 'Error';
-    D.el ? D.el.dialog.showMessageBoxSync(
-      D.el.getCurrentWindow(),
-      { type: 'error', message: m, title: t, buttons: ['OK'] },
-    ) : alert(m);
-    f && f();
+    msgBox({
+      type: 'error', message: m, title: t, buttons: ['OK'],
+    }, () => alert(m)).then(() => f && f());
   };
   $.confirm = (m, t, f) => {
-    f(D.el ? 1 - D.el.dialog.showMessageBoxSync(D.elw, {
+    msgBox({
       message: m, title: t, type: 'question', buttons: ['Yes', 'No'], cancelId: 1,
-    }) : +confirm(m));
+    }, () => 1 - confirm(m)).then((r) => f(+(r === 0)));
   };
 }

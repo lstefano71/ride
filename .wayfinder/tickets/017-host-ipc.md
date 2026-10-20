@@ -20,3 +20,9 @@ Follow the interface in [Design the host adapter interface](007-design-host-adap
 - `ide.js:420`, `851` (status window), `ide.js:752` (3500⌶)
 - `prf_ui.js:38`, `48`, `103`, `113` (prefs as its own window)
 - Aux pages (`dialog.html`, `status.html`, `about.html`, `empty.html`) already load both adapters and get `D.host`/`D.desktop` (no `D.el`).
+
+**Handed over by [Make dialogs async on D.host.dlg](015-host-dialogs.md#resolution):**
+
+- The unsaved-changes prompt in `ide.js` `onbeforeunload` already calls `D.host.dlg.message`. Only the veto mechanics move to `onCloseRequested`.
+- `src-tauri/capabilities/default.json` grants `dialog:allow-message`/`allow-open` (and `core:default`) to the `main` window only. Add each new window label, or dialogs and IPC from those windows will be denied.
+- Electron dialogs are parented to the focused app window. If you need a specific window, add a `parent` label option to `D.host.dlg`.
