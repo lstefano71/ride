@@ -14,7 +14,7 @@ Scope: decide this for every file RIDE keeps in `userData`, not only `prefs.json
 
 ## Resolution
 
-Both shells share one data folder; nothing is migrated.
+Both shells share one data folder; nothing is migrated ([ADR 0002](../../docs/adr/0002-shared-versioned-data-folder.md)).
 
 - **Folder:** `config_dir()/<productName from package.json>`, so `%APPDATA%\Ride-4.8` on Windows, `~/Library/Application Support/Ride-4.8` on macOS, `~/.config/Ride-4.8` on Linux. That's Electron's `userData` exactly. Use Rust `dirs::config_dir()`, **not** `data_dir()` (wrong on Linux). Tauri's identifier folder (`com.dyalog.ride`) holds only WebView data.
 - **No migration:** RIDE already starts each version fresh (the folder is versioned by `productName`, and no migration code exists), so the Tauri shell follows the same convention.
