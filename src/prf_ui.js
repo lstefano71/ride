@@ -35,22 +35,21 @@
     return 1;
   }
   function cancel() {
-    if (D.el) {
-      D.ipc.of.ride_master.emit('prfClose');
+    if (D.desktop) {
+      D.host.ipc.send('main', 'prfClose');
     } else {
       d.hidden = 1; D.ide.wins[0].focus();
     }
   }
   function ok() { apply() && cancel(); }
   D.prf_ui = function PrfUI(tab) {
-    if (D.prf_bw) {
-      D.ipc.server.emit(D.prf_bw.socket, 'show', tab);
-      const bw = D.el.BrowserWindow.fromId(D.prf_bw.id);
-      bw.show();
-      return !1;
-    }
-    if (D.ide && D.ide.floating) {
-      D.ipc.of.ride_master.emit('prfShow', tab);
+    if (D.desktop && D.host.win.current() !== 'prf') {
+      if (D.host.win.current() !== 'main') {
+        D.host.ipc.send('main', 'prfShow', tab);
+      } else {
+        D.host.ipc.send('prf', 'show', tab);
+        D.host.win.show('prf').then(() => D.host.win.focus('prf'));
+      }
       return !1;
     }
     if (!d) {
@@ -100,7 +99,7 @@
         tabs[id].init(e);
         payloads.push(e);
       }
-      if (D.el) {
+      if (D.desktop) {
         const t = d.querySelector('.dlg_title');
         t && (t.hidden = 1);
         document.title = t.innerText;
@@ -110,7 +109,7 @@
         d.className += ' web';
       }
     }
-    !D.el && D.util.dlg(d, { w: 765, h: 600 });
+    !D.desktop && D.util.dlg(d, { w: 765, h: 600 });
     Object.keys(tabs).forEach((i) => { tabs[i].load(); });
     $(typeof tab === 'string' ? `#prf_nav a[href$=${tab}]` : '#prf_nav .sel').mousedown();
   };

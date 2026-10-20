@@ -417,8 +417,7 @@ D.IDE = function IDE(opts = {}) {
   });
   D.prf.statusWindow(0);
   D.prf.statusWindow((x) => {
-    const sw = D.el.BrowserWindow.fromId(D.stw_bw.id);
-    x ? sw.show() : sw.hide();
+    D.desktop && (x ? D.host.win.show('status') : D.host.win.hide('status'));
     D.ide && D.ide.focusMRUWin();
     updMenu();
   });
@@ -546,8 +545,8 @@ D.IDE = function IDE(opts = {}) {
     Disconnect(x) {
       const m = x.message.toLowerCase(); ide.die();
       if (m === 'dyalog session has ended') {
-        ide.connected = 0; window.close();
-        ide.w3500 && ide.w3500.close();
+        ide.connected = 0; D.quit();
+        D.desktop && D.host.win.close('html3500').catch(() => {});
       } else { $.err(x.message, 'Interpreter disconnected'); }
     },
     SysError(x) { $.err(x.text, 'SysError', () => ide.die()); },
@@ -629,7 +628,7 @@ D.IDE = function IDE(opts = {}) {
     },
     ReplyGetSyntaxInformation(x) {
       D.parseSyntaxInformation(x);
-      D.ipc && D.ipc.server.broadcast('syntax', D.syntax);
+      D.desktop && D.host.ipc.broadcast('syntax', D.syntax);
     },
     ValueTip(x) {
       const req = ide.valueTipRequests[x.token];
@@ -749,28 +748,14 @@ D.IDE = function IDE(opts = {}) {
       }
     },
     ShowHTML(x) {
-      if (D.el) {
-        let w = ide.w3500;
-        if (!w || w.isDestroyed()) {
-          ide.w3500 = new D.el.BrowserWindow({
-            width: 800,
-            height: 500,
-            webPreferences: {
-              contextIsolation: true,
-              nodeIntegration: false,
-            },
-          });
-          w = ide.w3500;
-        }
-        D.elm.enable(w.webContents);
-        const fs = nodeRequire('fs');
-        const path = nodeRequire('path');
-        const file = path.join(D.el.app.getPath('temp'), 'ib3500.html');
-        fs.existsSync(file) && fs.rmSync(file, { force: true });
-        const html = `<?xml version="1.0" encoding="UTF-8"?>${x.html}`;
-        fs.writeFileSync(file, html, { encoding: 'utf8' });
-        w.loadURL(`file://${file}`);
-        w.setTitle(x.title || '3500 I-beam');
+      if (D.desktop) {
+        // html3500.html asks for this on load, and is sent it if already open
+        D.html3500 = { title: x.title || '3500 I-beam', html: x.html };
+        D.host.win.open('html3500', 'html3500.html', {
+          title: D.html3500.title, bounds: { width: 800, height: 500 },
+        }).then((isNew) => {
+          isNew || D.host.ipc.send('html3500', 'html3500', D.html3500);
+        }).catch((e) => console.error(e)); // eslint-disable-line no-console
       } else {
         const init = () => {
           ide.w3500.document.body.innerHTML = x.html;
@@ -848,8 +833,8 @@ D.IDE = function IDE(opts = {}) {
     },
     ReplyTreeList(x) { ide.wse.replyTreeList(x); },
     StatusOutput(x) {
-      if (!D.el) return;
-      D.ipc.server.emit(D.stw_bw.socket, 'add', x);
+      if (!D.desktop) return;
+      D.host.ipc.send('status', 'add', x);
       !D.prf.statusWindow() && D.prf.autoStatus() && D.prf.statusWindow(1);
     },
     ReplyGetLog(x) {
@@ -953,7 +938,7 @@ D.IDE.prototype = {
       '{RIDE_VER}': v.version,
     };
     ide.caption = D.prf.title().replace(/\{\w+\}/g, (x) => m[x.toUpperCase()] || x) || 'Dyalog';
-    D.ipc && D.ipc.server.broadcast('caption', ide.caption);
+    D.desktop && D.host.ipc.broadcast('caption', ide.caption);
     document.title = ide.caption;
   },
   focusWin(w) {
@@ -987,7 +972,7 @@ D.IDE.prototype = {
     b.className = `zoom${z} ${b.className.split(/\s+/).filter((s) => !/^zoom-?\d+$/.test(s)).join(' ')}`;
     this.gl.container.resize();
     if (this.floating) {
-      D.ipc.of.ride_master.emit('zoom', z);
+      this.ipc.emit('zoom', z);
       return;
     }
     const { wins } = this;
@@ -1020,8 +1005,8 @@ D.IDE.prototype = {
       if (v) u[k] = v;
       bws = bws || v === -1;
     });
-    if (bws && D.ipc.server) {
-      D.ipc.server.broadcast('getUnsaved');
+    if (bws && D.desktop) {
+      D.host.ipc.broadcast('getUnsaved');
     } else {
       D.send('Edit', D.pendingEdit);
       delete D.pendingEdit;

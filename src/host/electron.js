@@ -8,13 +8,131 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
   D.desktop = true;
   D.host = { kind: 'electron', ready: Promise.resolve() };
 
-  // Only index.html exposes Node (as nodeRequire); auxiliary pages get the flag alone.
+  // Every app page has Node; index.html moves require aside as nodeRequire for Monaco.
+  const rq = typeof nodeRequire !== 'undefined' ? nodeRequire
+    : typeof require === 'function' && require; // eslint-disable-line no-nested-ternary
+  if (!rq) return;
+  const { ipcRenderer } = rq('electron');
+  const remote = rq('@electron/remote');
+  const label = new URLSearchParams(window.location.search).get('label') || 'main';
+  ipcRenderer.sendSync('host-register', label, 0);
+
+  // ipc: messages between windows, addressed by window label and relayed by main.js.
+  // Payloads travel as JSON, as they do under Tauri.
+  const handlers = {}; // type → [fn(data, fromLabel)]
+  ipcRenderer.on('host-ipc', (_, from, type, s) => {
+    const data = s === undefined ? undefined : JSON.parse(s);
+    (handlers[type] || []).slice().forEach((f) => f(data, from));
+  });
+  const post = (to, type, data) => {
+    ipcRenderer.send('host-ipc', to, type, data === undefined ? undefined : JSON.stringify(data));
+    return Promise.resolve();
+  };
+  D.host.ipc = {
+    send: (to, type, data) => post(to, type, data),
+    broadcast: (type, data) => post(null, type, data),
+    on(type, f) {
+      (handlers[type] = handlers[type] || []).push(f);
+      return () => { handlers[type] = handlers[type].filter((g) => g !== f); };
+    },
+  };
+
+  // win: app windows, addressed by window label. Bounds are content bounds.
+  const cur = remote.getCurrentWindow();
+  const bwOf = (l) => {
+    if (l === label) return cur;
+    const id = ipcRenderer.sendSync('host-lookup', l);
+    const w = id && remote.BrowserWindow.fromId(id);
+    return w && !w.isDestroyed() ? w : null;
+  };
+  const noWin = (l) => Object.assign(new Error(`No window: ${l}`), { code: 'ENOENT' });
+  const onWin = (f) => (l, ...a) => new Promise((resolve) => {
+    const w = bwOf(l);
+    if (!w) throw noWin(l);
+    resolve(f(w, ...a));
+  });
+  D.host.win = {
+    current: () => label,
+    // o: {parent, bounds, hidden, modal, title, minWidth, minHeight, resizable, minimizable,
+    // maximizable}. Resolves true for a new window, false if the label was already open
+    // (then shown and focused unless hidden).
+    open(l, page, o = {}) {
+      const w0 = bwOf(l);
+      if (w0) {
+        if (!o.hidden) { w0.show(); w0.focus(); }
+        return Promise.resolve(false);
+      }
+      const b = o.bounds || {};
+      const opts = {
+        show: false,
+        useContentSize: true,
+        width: b.width || 800,
+        height: b.height || 600,
+        fullscreenable: false,
+        modal: !!o.modal,
+        webPreferences: {
+          contextIsolation: false,
+          nodeIntegration: true,
+          enableDeprecatedPaste: true,
+        },
+      };
+      if (b.x != null && b.y != null) Object.assign(opts, { x: b.x, y: b.y });
+      o.parent && (opts.parent = bwOf(o.parent));
+      ['title', 'minWidth', 'minHeight', 'resizable', 'minimizable', 'maximizable']
+        .forEach((k) => { o[k] != null && (opts[k] = o[k]); });
+      const bw = new remote.BrowserWindow(opts);
+      remote.require('@electron/remote/main').enable(bw.webContents);
+      ipcRenderer.sendSync('host-register', l, bw.webContents.id);
+      const u = new URL(page, window.location.href);
+      u.searchParams.set('label', l);
+      bw.loadURL(u.href);
+      o.hidden || bw.once('ready-to-show', () => bw.show());
+      return Promise.resolve(true);
+    },
+    exists: (l) => Promise.resolve(!!bwOf(l)),
+    show: onWin((w) => w.show()),
+    hide: onWin((w) => w.hide()),
+    focus: onWin((w) => w.focus()),
+    close: onWin((w) => w.close()),
+    isFocused: onWin((w) => w.isFocused()),
+    setTitle: onWin((w, t) => w.setTitle(t)),
+    setContentSize: onWin((w, width, height) => w.setContentSize(
+      Math.round(width),
+      Math.round(height),
+    )),
+    setMinSize: onWin((w, width, height) => w.setMinimumSize(width, height)),
+    getBounds: onWin((w) => w.getContentBounds()),
+    setBounds: onWin((w, b) => w.setContentBounds(b)),
+    displayFor: (b) => Promise.resolve(remote.screen.getDisplayMatching(b).workArea),
+    // fn() → boolean or Promise<boolean>: whether the window may close. Electron offers
+    // no async veto, so this always vetoes and closes again once fn agrees. Current
+    // window only.
+    onCloseRequested(l, fn) {
+      if (l !== label) {
+        return Promise.reject(Object.assign(new Error('Current window only'), { code: 'ENOTSUP' }));
+      }
+      let allowed = false;
+      window.onbeforeunload = (e) => {
+        if (allowed) return undefined;
+        const r = fn();
+        if (r === true) return undefined;
+        e.returnValue = false;
+        Promise.resolve(r).then((ok) => {
+          if (!ok) return;
+          allowed = true;
+          cur.close();
+        }, (x) => console.error(x)); // eslint-disable-line no-console
+        return false;
+      };
+      return Promise.resolve();
+    },
+  };
+
+  // The rest is for index.html pages only.
   if (typeof nodeRequire === 'undefined') return;
-  D.el = nodeRequire('@electron/remote');
+  D.el = remote;
   D.elm = D.el.require('@electron/remote/main');
   D.elw = D.el.getGlobal('elw');
-  D.ipc = nodeRequire('node-ipc').default;
-  D.ipc.config.logInColor = false;
   D = $.extend(D, D.el.getGlobal('D'));
   const plt = process.platform;
   D.win = /^win/i.test(plt);

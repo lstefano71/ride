@@ -1,137 +1,111 @@
 {
   const pm = ('die execCommand focus insert open processAutocompleteReply prompt saved setTC stateChanged' +
     ' update zoom ReplyFormatCode SetHighlightLine ValueTip').split(' ');
+  // A floating window's link to the main window, in the shape ide.ipc expects.
+  const toMain = { emit: (type, data) => D.host.ipc.send('main', type, data) };
+
   D.IPC_Client = function IPCClient(winId) {
-    // start IPC client
-    D.ipc.config.id = `editor${winId}`;
-    D.ipc.config.retry = 1500;
-    D.ipc.config.silent = true;
-    D.send = (type, payload) => D.ipc.of.ride_master.emit('RIDE', [type, payload]);
-    D.ipc.connectTo('ride_master', () => {
-      const rm = D.ipc.of.ride_master;
-      const ide = new D.IDE({ floating: 1, ipc: rm });
-      rm.on('connect', () => {
-        D.ipc.log('## connected to ride_master ##'.rainbow, D.ipc.config.delay);
-        rm.emit('browserCreated', winId);
-        window.onbeforeunload = (e) => { ide.onbeforeunload(e); };
-      });
-      rm.on('disconnect', () => {
-        D.ipc.log('disconnected from ride_master'.notice);
-        D.ide.connected = 0;
-        window.close();
-      });
-      pm.forEach(k => rm.on(k, ([id, ...x]) => { D.ide.wins[id][k](...x); }));
-      rm.on('caption', (c) => { D.ide.caption = c; });
-      rm.on('close', ([id]) => {
-        D.ide.wins[id].close();
-        rm.emit('unblock', 0);
-      });
-      rm.on('getUnsaved', () => {
-        rm.emit('getUnsavedReply', D.ide.getUnsaved());
-      });
-      rm.on('prf', ([k, x]) => { D.prf[k](x, 1); });
-      rm.on('ED', id => D.ide.wins[id].ED(D.ide.wins[id].me));
-      rm.on('pendingEditor', (pe) => {
-        D.ipc.log('got pendingEditor from ride_master : '.debug);
-        const { editorOpts, ee } = pe;
-        const ed = new D.Ed(D.ide, editorOpts);
-        D.ide.wins[ed.id] = ed;
-        ed.me_ready.then(() => {
-          ed.open(ee);
-          ed.updSize();
-          ed.refresh();
-          rm.emit('unblock', ed.id);
-          ed.meIsReady = true;
-        });
-        setTimeout(() => {
-          const glr = D.ide.gl.root;
-          const ci = glr.contentItems;
-          if (!ci.length) glr.addChild({ type: 'stack' });
-          ci[0].type === 'stack' && ci[0].header.position(ci[0].contentItems.length ? 'top' : false);
-          glr.contentItems[0].addChild({
-            type: 'component',
-            componentName: 'win',
-            componentState: { id: ed.id },
-            title: ee.name,
-          });
-        }, 100);
-      });
-      rm.on('syntax', (x) => {
-        Object.assign(D.syntax, x);
-        D.defineSyntaxRegex();
-      });
+    // floating editor window
+    const { on } = D.host.ipc;
+    D.send = (type, payload) => toMain.emit('RIDE', [type, payload]);
+    const ide = new D.IDE({ floating: 1, ipc: toMain });
+    pm.forEach((k) => on(k, ([id, ...x]) => { D.ide.wins[id][k](...x); }));
+    on('caption', (c) => { D.ide.caption = c; });
+    on('close', ([id]) => {
+      D.ide.wins[id].close();
+      toMain.emit('unblock', 0);
     });
+    on('getUnsaved', () => {
+      toMain.emit('getUnsavedReply', D.ide.getUnsaved());
+    });
+    on('prf', ([k, x]) => { D.prf[k](x, 1); });
+    on('ED', (id) => D.ide.wins[id].ED(D.ide.wins[id].me));
+    on('pendingEditor', (pe) => {
+      const { editorOpts, ee } = pe;
+      const ed = new D.Ed(D.ide, editorOpts);
+      D.ide.wins[ed.id] = ed;
+      ed.me_ready.then(() => {
+        ed.open(ee);
+        ed.updSize();
+        ed.refresh();
+        toMain.emit('unblock', ed.id);
+        ed.meIsReady = true;
+      });
+      setTimeout(() => {
+        const glr = D.ide.gl.root;
+        const ci = glr.contentItems;
+        if (!ci.length) glr.addChild({ type: 'stack' });
+        ci[0].type === 'stack' && ci[0].header.position(ci[0].contentItems.length ? 'top' : false);
+        glr.contentItems[0].addChild({
+          type: 'component',
+          componentName: 'win',
+          componentState: { id: ed.id },
+          title: ee.name,
+        });
+      }, 100);
+    });
+    on('syntax', (x) => {
+      Object.assign(D.syntax, x);
+      D.defineSyntaxRegex();
+    });
+    D.host.win.onCloseRequested(D.host.win.current(), () => {
+      const e = {};
+      ide.onbeforeunload(e);
+      return e.returnValue !== false;
+    });
+    toMain.emit('browserCreated', winId);
   };
 
   D.IPC_Prf = function IPCPrf() {
-    // start IPC client - preferences
-    D.ipc.config.id = 'prf';
-    D.ipc.config.retry = 1500;
-    D.ipc.config.silent = true;
-    D.ipc.connectTo('ride_master', () => {
-      const rm = D.ipc.of.ride_master;
-      rm.on('connect', () => {
-        D.ipc.log('## connected to ride_master ##'.rainbow, D.ipc.config.delay);
-        window.onbeforeunload = (e) => {
-          e.returnValue = false;
-          rm.emit('prfClose');
-        };
-        rm.emit('prfCreated');
-      });
-      rm.on('disconnect', () => {
-        D.ipc.log('disconnected from ride_master'.notice);
-        D.onbeforeunload = null;
-        window.close();
-      });
-      rm.on('caption', (c) => { document.title = `Preferences - ${c}`; });
-      rm.on('show', x => D.prf_ui(x));
-      rm.on('prf', ([k, x]) => D.prf[k](x, 1));
+    // preferences window: closing it only hides it
+    const { on } = D.host.ipc;
+    on('caption', (c) => { document.title = `Preferences - ${c}`; });
+    on('show', (x) => D.prf_ui(x));
+    on('prf', ([k, x]) => D.prf[k](x, 1));
+    D.host.win.onCloseRequested(D.host.win.current(), () => {
+      toMain.emit('prfClose');
+      return false;
     });
+    toMain.emit('prfCreated');
   };
 
-  function WindowRect(id, prf) {
+  // Content bounds for the seq-th floating editor window: cascaded from the saved
+  // position, or centred by the shell (x, y null) if that is now mostly off screen.
+  const WindowRect = (seq, prf) => {
     let {
       x, y, width, height,
     } = prf;
-    x += prf.ox * (id - 1);
-    y += prf.oy * (id - 1);
-    const b = D.el.screen.getDisplayMatching({
+    x += prf.ox * (seq - 1);
+    y += prf.oy * (seq - 1);
+    return D.host.win.displayFor({
       x, y, width, height,
-    }).bounds;
-    const vw = Math.max(0, Math.min(x + width, b.x + b.width) - Math.max(x, b.x));
-    const vh = Math.max(0, Math.min(y + height, b.y + b.height) - Math.max(y, b.y));
-    if (width * height > 2 * vw * vh) {
-      // saved window position is now mostly off screen
-      x = null; y = null;
-      width = Math.min(width, b.width);
-      height = Math.min(height, b.height);
-    }
-    return {
-      x, y, width, height,
-    };
-  }
+    }).then((b) => {
+      const vw = Math.max(0, Math.min(x + width, b.x + b.width) - Math.max(x, b.x));
+      const vh = Math.max(0, Math.min(y + height, b.y + b.height) - Math.max(y, b.y));
+      if (width * height > 2 * vw * vh) {
+        // saved window position is now mostly off screen
+        x = null; y = null;
+        width = Math.min(width, b.width);
+        height = Math.min(height, b.height);
+      }
+      return {
+        x, y, width, height,
+      };
+    });
+  };
+  let winSeq = 0;
   D.IPC_CreateWindow = function IPCCreateWindow(seq) {
-    let opts = {
-      show: false,
-      fullscreen: false,
-      fullscreenable: false,
-      parent: D.elw,
-      alwaysOnTop: false,
-      webPreferences: {
-        contextIsolation: false,
-        enableRemoteModule: true,
-        nodeIntegration: true,
-        enableDeprecatedPaste: true,
-      },
-    };
-    opts = Object.assign(opts, WindowRect(seq, D.prf.editWins()));
-    const bw = new D.el.BrowserWindow(opts);
-    D.elm.enable(bw.webContents);
-    bw.loadURL(`${window.location}?type=editor&winId=${bw.id}&appid=${D.ipc.config.appspace}`);
+    winSeq += 1;
+    const n = winSeq;
+    WindowRect(seq, D.prf.editWins()).then((bounds) => D.host.win.open(
+      `editor${n}`,
+      `index.html?type=editor&winId=${n}`,
+      { parent: 'main', bounds, hidden: true },
+    )).catch((e) => console.error(e)); // eslint-disable-line no-console
   };
 
   D.IPC_Server = function IPCServer() {
-    // start IPC server
+    // main window: the hub every other window talks to
     let dlgLoaded;
     let prfLoaded;
     let statLoaded;
@@ -142,118 +116,131 @@
     ];
     D.pwins = [];
     D.pendingEditors = [];
-    D.ipc.config.id = 'ride_master';
-    D.ipc.config.appspace = `ride_${+new Date()}`;
-    D.ipc.config.retry = 1500;
-    D.ipc.config.silent = true;
-    D.ipc.serve(() => {
-      const srv = D.ipc.server;
-      srv.on('prfCreated', (data, socket) => {
-        D.prf_bw.socket = socket;
-        prfLoaded(true);
-      });
-      srv.on('prfShow', x => D.prf_ui(x));
-      srv.on('prfClose', () => {
-        D.el.BrowserWindow.fromId(D.prf_bw.id).hide();
-        D.ide && D.ide.focusMRUWin();
-      });
-      srv.on('statCreated', (data, socket) => {
-        D.stw_bw.socket = socket;
-        srv.emit(socket, 'setTheme', D.theme);
-        statLoaded(true);
-      });
-      srv.on('statClose', () => {
-        D.prf.statusWindow(0);
-      });
-      srv.on('dialogCreated', (data, socket) => {
-        D.dlg_bw.socket = socket;
-        srv.emit(socket, 'setTheme', D.theme);
-        dlgLoaded(true);
-      });
-      srv.on('dialogClose', ([t, r]) => {
-        D.util.replyDialog(t, r);
-        D.el.BrowserWindow.fromId(D.dlg_bw.id).hide();
-        D.ide && D.ide.focusMRUWin();
-      });
-      srv.on('browserCreated', (bwId, socket) => {
-        const wp = new D.IPC_WindowProxy(bwId, socket);
-        srv.emit(socket, 'caption', D.ide.caption);
-        D.pwins.push(wp);
-        D.IPC_LinkEditor();
-      });
-      srv.on('Edit', data => D.ide.Edit(data));
-      srv.on('focusedWin', (id) => {
-        const w = D.ide.wins[id];
-        D.ide.focusedWin = w;
-        w && (w.focusTS = +new Date());
-      });
-      srv.on('pfKey', x => D.ide.pfKey(x));
-      srv.on('getStats', () => D.ide.getStats());
-      srv.on('getSyntax', (data, socket) => {
-        srv.emit(socket, 'syntax', D.syntax);
-      });
-      srv.on('getUnsavedReply', (data) => {
-        if (!D.pendingEdit) return;
-        Object.keys(data).forEach((k) => {
-          if (data[k] && D.pendingEdit.unsaved[k] === -1) D.pendingEdit.unsaved[k] = data[k];
-          else delete D.pendingEdit.unsaved[k];
-        });
-
-        if (!Object.values(D.pendingEdit.unsaved).includes(-1)) {
-          D.send('Edit', D.pendingEdit);
-          delete D.pendingEdit;
-        }
-      });
-      srv.on('getValueTip', (data) => D.ide.getValueTip(...data));
-      srv.on('prf', ([k, x]) => { D.prf[k](x); });
-      srv.on('switchWin', data => D.ide.switchWin(data));
-      srv.on('updPW', data => D.ide.updPW(data));
-      srv.on('unblock', (id) => {
-        !!id && D.ide.wins[id].me_resolve(true);
-        D.ide.unblock();
-      });
-      srv.on('mounted', (id) => {
-        D.ide.hadErr > 0 && (D.ide.hadErr -= 1);
-        D.ide.focusWin(D.ide.wins[id]);
-      });
-      srv.on('zoom', (z) => D.ide.zoom(z));
-      srv.on('ABT', () => D.commands.ABT());
-      srv.on('LOG', () => D.commands.LOG());
-      srv.on('NEW', () => D.commands.NEW());
-      srv.on('OWS', () => D.commands.OWS());
-      srv.on('RIDE', ([type, payload]) => D.send(type, payload));
+    const { on, send } = D.host.ipc;
+    on('prfCreated', () => prfLoaded(true));
+    on('prfShow', (x) => D.prf_ui(x));
+    on('prfClose', () => {
+      D.host.win.hide('prf');
+      D.ide && D.ide.focusMRUWin();
     });
-    D.ipc.server.start();
+    on('statCreated', (data, from) => {
+      send(from, 'setTheme', D.theme);
+      statLoaded(true);
+    });
+    on('statClose', () => {
+      D.prf.statusWindow(0);
+    });
+    on('dialogCreated', (data, from) => {
+      send(from, 'setTheme', D.theme);
+      dlgLoaded(true);
+    });
+    on('dialogClose', ([t, r]) => {
+      D.util.replyDialog(t, r);
+      D.host.win.hide('dialog');
+      D.ide && D.ide.focusMRUWin();
+    });
+    on('browserCreated', (winId, from) => {
+      const wp = new D.IPC_WindowProxy(winId, from);
+      send(from, 'caption', D.ide.caption);
+      D.pwins.push(wp);
+      D.IPC_LinkEditor();
+    });
+    on('Edit', (data) => D.ide.Edit(data));
+    on('focusedWin', (id) => {
+      const w = D.ide.wins[id];
+      D.ide.focusedWin = w;
+      w && (w.focusTS = +new Date());
+    });
+    on('pfKey', (x) => D.ide.pfKey(x));
+    on('getStats', () => D.ide.getStats());
+    on('getSyntax', (data, from) => {
+      send(from, 'syntax', D.syntax);
+    });
+    on('getUnsavedReply', (data) => {
+      if (!D.pendingEdit) return;
+      Object.keys(data).forEach((k) => {
+        if (data[k] && D.pendingEdit.unsaved[k] === -1) D.pendingEdit.unsaved[k] = data[k];
+        else delete D.pendingEdit.unsaved[k];
+      });
+
+      if (!Object.values(D.pendingEdit.unsaved).includes(-1)) {
+        D.send('Edit', D.pendingEdit);
+        delete D.pendingEdit;
+      }
+    });
+    on('getValueTip', (data) => D.ide.getValueTip(...data));
+    on('prf', ([k, x]) => { D.prf[k](x); });
+    on('switchWin', (data) => D.ide.switchWin(data));
+    on('updPW', (data) => D.ide.updPW(data));
+    on('unblock', (id) => {
+      !!id && D.ide.wins[id].me_resolve(true);
+      D.ide.unblock();
+    });
+    on('mounted', (id) => {
+      D.ide.hadErr > 0 && (D.ide.hadErr -= 1);
+      D.ide.focusWin(D.ide.wins[id]);
+    });
+    on('zoom', (z) => D.ide.zoom(z));
+    on('ABT', () => D.commands.ABT());
+    on('LOG', () => D.commands.LOG());
+    on('NEW', () => D.commands.NEW());
+    on('OWS', () => D.commands.OWS());
+    on('RIDE', ([type, payload]) => D.send(type, payload));
+    // content for the message-fed windows
+    on('abtGet', (data, from) => {
+      send(from, 'abt', { details: D.aboutDetails(), theme: D.theme });
+    });
+    on('html3500Get', (data, from) => {
+      D.html3500 && send(from, 'html3500', D.html3500);
+    });
+    let logFeed;
+    on('logGet', (data, from) => {
+      const { cn } = D;
+      logFeed && cn.rmLogListener(logFeed);
+      logFeed = (x) => send(from, 'logAdd', `${x}`);
+      send(from, 'log', {
+        caption: D.ide ? D.ide.caption : '',
+        text: cn.getLog().filter((x) => x).join('\n'),
+      });
+      cn.addLogListener(logFeed);
+    });
+    on('logClose', () => {
+      logFeed && D.cn.rmLogListener(logFeed);
+      logFeed = null;
+    });
     return winsLoaded;
   };
   D.IPC_LinkEditor = function IPCLinkEditor(pe) {
     pe && D.pendingEditors.push(pe);
     if (!D.pendingEditors.length) return;
-    let wp = D.prf.floatSingle() ? D.pwins[0] : D.pwins.find(w => w.id < 0);
+    let wp = D.prf.floatSingle() ? D.pwins[0] : D.pwins.find((w) => w.id < 0);
     if (!wp) {
-      D.IPC_CreateWindow(pe.editorOpts.id);
+      D.IPC_CreateWindow(D.pendingEditors[0].editorOpts.id);
       return;
     }
     if (wp.id > 0) wp = Object.assign(new D.IPC_WindowProxy(), wp);
-    const bw = D.el.BrowserWindow.fromId(wp.bwId);
-    bw.show();
+    D.host.win.show(wp.label);
     if (!D.prf.editWinsRememberPos()) {
-      const o = WindowRect(1 + (wp.bwId - D.pwins[0].bwId), D.prf.editWins());
-      if (o.x == null) bw.setContentSize(o.width, o.height);
-      else bw.setContentBounds(o);
+      const { label } = wp;
+      WindowRect(1 + (wp.bwId - D.pwins[0].bwId), D.prf.editWins()).then((o) => (o.x == null
+        ? D.host.win.setContentSize(label, o.width, o.height)
+        : D.host.win.setBounds(label, o)))
+        .catch((e) => console.error(e)); // eslint-disable-line no-console
     }
     const ped = D.pendingEditors.shift();
     wp.id = ped.editorOpts.id;
     wp.tc = ped.editorOpts.tc;
-    wp.focusTS =  +new Date();
+    wp.focusTS = +new Date();
     D.wins[wp.id] = wp;
-    D.ipc.server.emit(wp.socket, 'pendingEditor', ped);
+    D.host.ipc.send(wp.label, 'pendingEditor', ped);
   };
 
-  D.IPC_WindowProxy = function IPCWindowProxy(bwId, socket) {
+  // Stands in, in the main window, for an editor living in a floating window.
+  // bwId: the window's sequence number (also the "is floating" flag); label: its window label.
+  D.IPC_WindowProxy = function IPCWindowProxy(bwId, label) {
     const ed = this;
     ed.bwId = bwId;
-    ed.socket = socket;
+    ed.label = label;
     ed.id = -1;
     ed.me = { dyalogCmds: ed };
     ed.me_ready = new Promise((r) => { ed.me_resolve = r; });
@@ -261,12 +248,13 @@
     ed.focusTS = +new Date();
   };
   D.IPC_WindowProxy.prototype = {
-    emit(f, ...x) { D.ipc.server.emit(this.socket, f, [this.id, ...x]); },
+    emit(f, ...x) { D.host.ipc.send(this.label, f, [this.id, ...x]); },
     hasFocus() { return this === D.ide.focusedWin; },
     close() {
       if (this === D.pwins[0] && D.prf.editWinsRememberPos()) {
-        const b = D.el.BrowserWindow.fromId(this.bwId).getContentBounds();
-        D.prf.editWins(Object.assign(D.prf.editWins(), b));
+        D.host.win.getBounds(this.label).then((b) => {
+          D.prf.editWins(Object.assign(D.prf.editWins(), b));
+        }).catch((e) => console.error(e)); // eslint-disable-line no-console
       }
       this.emit('close');
     },
@@ -276,9 +264,7 @@
     TVO() { D.prf.fold.toggle(); },
     TVB() { D.prf.breakPts.toggle(); },
   };
-  function handlerFor(k) {
-    return function handler(...x) { this.emit(k, ...x); };
-  }
+  const handlerFor = (k) => function handler(...x) { this.emit(k, ...x); };
   pm.forEach((k) => {
     D.IPC_WindowProxy.prototype[k] || (D.IPC_WindowProxy.prototype[k] = handlerFor(k));
   });

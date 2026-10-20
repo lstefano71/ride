@@ -25,6 +25,8 @@
     </div>
   </div>
   <script>
+    const { ipc: hostIpc, win: hostWin } = D.host;
+    const closeAbout = () => hostWin.close(hostWin.current());
     if (typeof require !== 'undefined') {
       document.getElementById('abt_contact').onclick = (x) => {
         if (x.target.nodeName === 'A' && /^http/.test(x.target.href)) {
@@ -34,7 +36,19 @@
         return !0;
       };
     }
-    document.getElementById('abt_close').onclick = () => { window.close() };;
+    D.host.ready.then(() => {
+      hostIpc.on('abt', ({ details, theme }) => {
+        const ta = document.getElementById('abt_ta');
+        ta.value = details;
+        ta.scrollTop = 0;
+        ta.selectionStart = 0;
+        ta.selectionEnd = 0;
+        document.getElementById('theme_dark').disabled = theme !== 'dark';
+        document.getElementById('theme_light').disabled = theme !== 'light';
+      });
+      hostIpc.send('main', 'abtGet');
+    });
+    document.getElementById('abt_close').onclick = closeAbout;
     let cpy = document.getElementById('abt_copy');
     cpy.onclick = () => {
       let ta = document.getElementById('abt_ta');
@@ -47,7 +61,7 @@
     abt.tabIndex = 0;
     abt.onkeydown = (x) => {
       if (x.key === 'Escape') {
-        window.close();
+        closeAbout();
         return !1;
       } else if (x.key === 'Enter') {
         cpy.click();

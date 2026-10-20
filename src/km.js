@@ -72,7 +72,7 @@
     UND(me) { me.trigger('D', 'undo'); },
     PRF() { D.prf_ui(); },
     ABT() {
-      if (D.el && D.ide && D.ide.floating) D.ipc.of.ride_master.emit('ABT');
+      if (D.desktop && D.ide && D.ide.floating) D.host.ipc.send('main', 'ABT');
       else D.abt();
     },
     CAM() {
@@ -124,8 +124,8 @@
       openURI(D.hlp.THIRDPARTY);
     },
     OWS() {
-      if (D.el && D.ide.floating) {
-        D.ipc.of.ride_master.emit('OWS');
+      if (D.desktop && D.ide.floating) {
+        D.host.ipc.send('main', 'OWS');
         return;
       }
       if (D.desktop && D.isLocalInterpreter) {
@@ -147,7 +147,7 @@
     NEW() {
       if (!D.el) return;
       if (D.ide.floating) {
-        D.ipc.of.ride_master.emit('NEW');
+        D.host.ipc.send('main', 'NEW');
         return;
       }
       if (D.lastSpawnedExe) {
@@ -242,35 +242,15 @@
       let w; D.el && (w = D.el.BrowserWindow.getFocusedWindow()) && w.webContents.toggleDevTools();
     },
     LOG() {
-      if (!D.el) return;
+      if (!D.desktop) return;
       if (D.ide.floating) {
-        D.ipc.of.ride_master.emit('LOG');
+        D.host.ipc.send('main', 'LOG');
         return;
       }
-      const w = new D.el.BrowserWindow({
-        width: 400,
-        height: 500,
-        parent: D.elw,
-        webPreferences: {
-          contextIsolation: true,
-          nodeIntegration: false,
-        },
-      });
-      D.elm.enable(w.webContents);
-      const { cn } = D;
-      D.logw = w;
-      w.setTitle(`Protocol Log - ${D.ide.caption}`);
-      w.loadURL(`file://${__dirname}/empty.html`);
-      w.webContents.executeJavaScript('var d = document, h=d.documentElement, b=d.body, e=d.createElement("div");'
-                                    + 'b.style.fontFamily="monospace";b.style.overflow="scroll";'
-                                    + 'e.style.whiteSpace="pre";!!b.appendChild(e);');
-      const f = (x) => {
-        const t = JSON.stringify(`${x}\n`);
-        w.webContents.executeJavaScript(`e.textContent += ${t}; h.scrollTop = h.scrollHeight`);
-      };
-      f(cn.getLog().filter((x) => x).join('\n'));
-      cn.addLogListener(f);
-      w.on('closed', () => { delete D.logw; cn.rmLogListener(f); });
+      // log.html asks the main window for its content
+      D.host.win.open('log', 'log.html', {
+        parent: 'main', bounds: { width: 400, height: 500 }, title: `Protocol Log - ${D.ide.caption}`,
+      }).catch((e) => console.error(e)); // eslint-disable-line no-console
     },
     TIP() {
       const w = D.ide.focusedWin;

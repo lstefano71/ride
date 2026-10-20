@@ -3,11 +3,26 @@
   "identifier": "default",
   "description": "enables the default permissions",
   "windows": [
-    "main"
+    "main",
+    "prf",
+    "dialog",
+    "status",
+    "about",
+    "log",
+    "html3500"
   ],
   "permissions": [
     "core:default",
     "core:window:allow-set-fullscreen",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-focus",
+    "core:window:allow-close",
+    "core:window:allow-destroy",
+    "core:window:allow-set-title",
+    "core:window:allow-set-size",
+    "core:window:allow-set-min-size",
+    "core:webview:allow-create-webview-window",
     "dialog:allow-message",
     "dialog:allow-open"
   ]

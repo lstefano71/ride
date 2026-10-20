@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+<meta charset=utf-8>
+<title>Protocol Log</title>
+<script src=src/host/electron.js></script><script src=src/host/tauri.js></script>
+<style>
+  body { font-family: monospace; overflow: scroll; margin: 0; }
+  #log { white-space: pre; }
+</style>
+</head>
+<body>
+<div id=log></div>
+<script>
+  const { ipc: hostIpc, win: hostWin } = D.host;
+  const h = document.documentElement;
+  const e = document.getElementById('log');
+  const add = (t) => { e.textContent += `${t}\n`; h.scrollTop = h.scrollHeight; };
+  D.host.ready.then(() => {
+    hostWin.onCloseRequested(hostWin.current(), () => {
+      hostIpc.send('main', 'logClose');
+      return true;
+    });
+    hostIpc.on('log', ({ caption, text }) => {
+      document.title = `Protocol Log - ${caption}`;
+      e.textContent = '';
+      add(text);
+    });
+    hostIpc.on('logAdd', add);
+    hostIpc.send('main', 'logGet');
+  });
+</script>
+</body>
+</html>

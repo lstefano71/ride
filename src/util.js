@@ -145,11 +145,10 @@
       }
     },
     stringDialog(x, f) {
-      if (D.dlg_bw) {
+      if (D.desktop) {
         dlgCb[x.token] = f;
-        D.ipc.server.emit(D.dlg_bw.socket, 'show', x);
-        const bw = D.el.BrowserWindow.fromId(D.dlg_bw.id);
-        bw.show();
+        D.host.ipc.send('dialog', 'show', x);
+        D.host.win.show('dialog').then(() => D.host.win.focus('dialog'));
         return;
       }
       const value = x.defaultValue || null;
@@ -238,11 +237,10 @@
           f(-1);
         });
         return;
-      } else if (D.dlg_bw) {
+      } else if (D.desktop) {
         dlgCb[x.token] = f;
-        D.ipc.server.emit(D.dlg_bw.socket, 'show', x);
-        const bw = D.el.BrowserWindow.fromId(D.dlg_bw.id);
-        bw.show();
+        D.host.ipc.send('dialog', 'show', x);
+        D.host.win.show('dialog').then(() => D.host.win.focus('dialog'));
         return;
       }
       const { esc } = D.util;

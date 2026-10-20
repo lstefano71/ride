@@ -36,43 +36,25 @@
   };
 
   D.abt = function About() {
-    const details = D.aboutDetails();
-
-    if (D.el) {
-      const w = new D.el.BrowserWindow({
-        width: 600,
-        height: 500,
+    if (D.desktop) {
+      // about.html asks the main window for its content
+      D.host.win.open('about', 'about.html', {
+        parent: 'main',
+        modal: true,
+        bounds: { width: 600, height: 500 },
         minWidth: 600,
         minHeight: 500,
-        parent: D.elw,
-        modal: true,
-        webPreferences: {
-          contextIsolation: true,
-          nodeIntegration: false,
-        },
-      });
-      D.elm.enable(w.webContents);
-      D.abtw = w;
-      w.loadURL(`file://${__dirname}/about.html`);
-      w.webContents.executeJavaScript(`document.getElementById('abt_ta').value=${JSON.stringify(details)};`);
-      w.webContents.executeJavaScript(`document.getElementById('theme_dark').disabled = ${D.theme !== 'dark'}`);
-      w.webContents.executeJavaScript(`document.getElementById('theme_light').disabled = ${D.theme !== 'light'};`);
-
-      w.on('closed', () => { delete D.abtw; });
+      }).catch((e) => console.error(e)); // eslint-disable-line no-console
     } else {
       if (!d) {
         d = I.abt;
         I.abt_close.onclick = () => { d.hidden = 1; };
         I.abt_copy.onclick = () => {
-          if (D.el) {
-            D.el.clipboard.writeText(ta.value);
-          } else {
-            ta.select();
-            document.execCommand('copy');
-            ta.selectionEnd = 0;
-          }
+          ta.select();
+          document.execCommand('copy');
+          ta.selectionEnd = 0;
         };
-        I.abt_copy.hidden = !D.el && !document.queryCommandSupported('copy');
+        I.abt_copy.hidden = !document.queryCommandSupported('copy');
         I.abt_contact.onclick = (x) => {
           if (x.target.nodeName === 'A' && /^http/.test(x.target.href)) {
             D.openExternal(x.target.href);
@@ -83,7 +65,7 @@
         ta = I.abt_ta;
       }
       D.util.dlg(d, { w: 600, h: 450 });
-      ta.value = details;
+      ta.value = D.aboutDetails();
       ta.scrollTop = 0;
       ta.selectionStart = 0;
       ta.selectionEnd = 0;

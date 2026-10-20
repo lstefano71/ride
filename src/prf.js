@@ -200,9 +200,9 @@ D.prf = {};
     if (l.length) y = p(); // old value as an object (only needed if we have any listeners)
     sx ? D.db.setItem(k, sx) : D.db.removeItem(k); // store
     for (let i = 0; i < l.length; i++) l[i](nx, y); // notify listeners
-    if (D.ipc) {
-      D.ipc.server && D.ipc.server.broadcast('prf', [k, nx]);
-      !s && D.ipc.of.ride_master && D.ipc.of.ride_master.emit('prf', [k, nx]);
+    if (D.desktop && D.host.ipc) {
+      if (D.host.win.current() === 'main') D.host.ipc.broadcast('prf', [k, nx]);
+      else !s && D.host.ipc.send('main', 'prf', [k, nx]);
     }
     return nx;
   };

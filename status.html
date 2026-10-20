@@ -2,52 +2,33 @@
 <html>
 <head>
 <meta charset=utf-8>
+<title>Status Output</title>
 <link rel=stylesheet href='style/ride-base.css'>
 <link rel=stylesheet class=theme id=theme_dark href='style/dark-theme.css'>
 <link rel=stylesheet class=theme id=theme_light href='style/light-theme.css'>
 <script src=src/host/electron.js></script><script src=src/host/tauri.js></script>
 <script>
-
-    const ipc = require('node-ipc').default;
-    const el = require('@electron/remote');
-    const bw = el.getCurrentWindow();
-    const [width] = bw.getContentSize();
-    const qp = require('querystring').parse(window.location.search.slice(1));
-    const iswin = /^win/i.test(process.platform);
-
-    ipc.config.id = 'statusWin';
-    ipc.config.appspace = qp.appid;
-    ipc.config.retry = 1500;
-    ipc.config.silent = true;
-    let rm;
-    ipc.connectTo('ride_master', () => {
-      rm = ipc.of.ride_master;
-      rm.on('connect', () => {
-        window.onbeforeunload = (e) => {
-          e.returnValue = false;
-          rm.emit('statClose');
-        };
-        rm.emit('statCreated');
+    const { ipc: hostIpc, win: hostWin } = D.host;
+    const toMain = (type, data) => hostIpc.send('main', type, data);
+    D.host.ready.then(() => {
+      hostWin.onCloseRequested(hostWin.current(), () => {
+        toMain('statClose');
+        return false;
       });
-      rm.on('disconnect', () => {
-        ipc.log('disconnected from ride_master'.notice);
-        window.onbeforeunload = null;
-        window.close();
-      });
-      // rm.on('add', (x) => add(x));
-      rm.on('add', add);
-      rm.on('setTheme', (theme) => {
+      hostIpc.on('add', add);
+      hostIpc.on('setTheme', (theme) => {
         document.getElementById('theme_dark').disabled = theme !== 'dark';
         document.getElementById('theme_light').disabled = theme !== 'light';
       });
-      rm.on('caption', (caption) => {
-        document.title =`Status Output - ${caption}`;
+      hostIpc.on('caption', (caption) => {
+        document.title = `Status Output - ${caption}`;
       });
+      toMain('statCreated');
     });
 
-    window.onkeydown=function(x) {
-      if (x.which===27) rm.emit('statClose');
-    }
+    window.onkeydown = function (x) {
+      if (x.which === 27) toMain('statClose');
+    };
 
     const d = document;
     function add(x) {

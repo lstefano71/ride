@@ -13,7 +13,7 @@ const out = path.join(root, '_', 'tauri-frontend');
 const sh = (x) => execSync(x, { cwd: root, encoding: 'utf8' }).trim();
 
 const files = [
-  'index.html', 'about.html', 'dialog.html', 'empty.html', 'status.html',
+  'index.html', 'about.html', 'dialog.html', 'empty.html', 'status.html', 'log.html', 'html3500.html',
   'D.png', 'favicon.ico', 'favicon.png',
   'node_modules/jquery/dist/jquery.min.js',
   'node_modules/toastr/build/toastr.min.js',

@@ -61,6 +61,29 @@ const svNow = () => { // save now
 
 const sv = () => { if (!tid)tid = setTimeout(svNow, 2000); }; // save (throttled)
 
+// D.host.ipc relay (src/host/electron.js): renderers address each other by window label.
+const labels = new Map(); // label → webContents
+const labelOf = (wc) => ([...labels].find(([, x]) => x === wc) || [null])[0];
+el.ipcMain.on('host-register', (e, label, wcId) => {
+  const wc = wcId ? el.webContents.fromId(wcId) : e.sender;
+  if (wc) {
+    labels.set(label, wc);
+    wc.once('destroyed', () => { labels.get(label) === wc && labels.delete(label); });
+  }
+  e.returnValue = null;
+});
+el.ipcMain.on('host-lookup', (e, label) => {
+  const wc = labels.get(label);
+  const bw = wc && !wc.isDestroyed() && el.BrowserWindow.fromWebContents(wc);
+  e.returnValue = bw ? bw.id : 0;
+});
+el.ipcMain.on('host-ipc', (e, to, type, data) => {
+  const from = labelOf(e.sender);
+  const deliver = (wc) => { wc.isDestroyed() || wc.send('host-ipc', from, type, data); };
+  if (to != null) labels.has(to) && deliver(labels.get(to));
+  else labels.forEach((wc) => { wc !== e.sender && deliver(wc); });
+});
+
 el.app.on('ready', () => {
   // initialise variables
   let x; let y;

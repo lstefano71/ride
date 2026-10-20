@@ -219,8 +219,8 @@
         document.getElementById('theme_dark').disabled = schema.theme !== 'dark';
         document.getElementById('theme_light').disabled = schema.theme !== 'light';
         D.theme = schema.theme;
-        if (D.ipc && D.ipc.server) {
-          D.ipc.server.broadcast('setTheme', D.theme);
+        if (D.desktop && D.host.ipc && D.host.win.current() === 'main') {
+          D.host.ipc.broadcast('setTheme', D.theme);
         }
         I.col_stl && (I.col_stl.textContent = renderCSS(schema));
         if (window.monaco) setMonacoTheme(schema);

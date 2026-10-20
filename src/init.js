@@ -119,83 +119,32 @@ const Console = console;
       const qp = new URLSearchParams(loc.search);
       const type = qp.get('type');
       if (type === 'prf') {
-        D.ipc.config.appspace = qp.get('appid');
         document.body.className += ' floating-window';
         D.IPC_Prf();
         I.splash.hidden = 1;
       } else if (type === 'editor') {
-        D.ipc.config.appspace = qp.get('appid');
         document.body.className += ' floating-window';
         D.IPC_Client(+qp.get('winId'));
         I.splash.hidden = 1;
-      } else if (D.host.kind === 'tauri') {
-        I.splash.hidden = 1;
-        D.cn.start();
       } else {
         const winsLoaded = D.IPC_Server();
-        const appid = D.ipc.config.appspace;
-        let bw = new D.el.BrowserWindow({
-          show: false,
-          parent: D.elw,
-          alwaysOnTop: false,
-          fullscreen: false,
-          fullscreenable: false,
-          minWidth: 790,
-          minHeight: 600,
-          webPreferences: {
-            contextIsolation: false,
-            enableRemoteModule: true,
-            nodeIntegration: true,
-            enableDeprecatedPaste: true,
-          },
-        });
-        D.elm.enable(bw.webContents);
-        bw.loadURL(`${loc}?type=prf&appid=${appid}`);
-        D.prf_bw = { id: bw.id };
-        bw = new D.el.BrowserWindow({
-          show: false,
-          parent: D.elw,
-          alwaysOnTop: false,
-          fullscreen: false,
-          fullscreenable: false,
-          modal: true,
-          width: 400,
-          height: 350,
-          resizable: false,
-          minimizable: false,
-          maximizable: false,
-          webPreferences: {
-            contextIsolation: false,
-            enableRemoteModule: true,
-            nodeIntegration: true,
-            enableDeprecatedPaste: true,
-          },
-        });
-        D.elm.enable(bw.webContents);
-        bw.loadURL(`file://${__dirname}/dialog.html?appid=${appid}`);
-        D.dlg_bw = { id: bw.id };
-        bw = new D.el.BrowserWindow({
-          show: false,
-          parent: D.elw,
-          alwaysOnTop: false,
-          fullscreen: false,
-          fullscreenable: false,
-          modal: false,
-          width: 600,
-          height: 400,
-          resizable: true,
-          minimizable: true,
-          maximizable: true,
-          webPreferences: {
-            contextIsolation: false,
-            enableRemoteModule: true,
-            nodeIntegration: true,
-          },
-        });
-        D.elm.enable(bw.webContents);
-        bw.loadURL(`file://${__dirname}/status.html?appid=${appid}`);
-        D.stw_bw = { id: bw.id };
-        D.elw.focus();
+        const { win } = D.host;
+        const aux = { parent: 'main', hidden: true, minimizable: false };
+        Promise.all([
+          win.open('prf', 'index.html?type=prf', {
+            ...aux, minWidth: 790, minHeight: 600, minimizable: true,
+          }),
+          win.open('dialog', 'dialog.html', {
+            ...aux,
+            modal: true,
+            bounds: { width: 400, height: 350 },
+            resizable: false,
+            maximizable: false,
+          }),
+          win.open('status', 'status.html', {
+            ...aux, bounds: { width: 600, height: 400 }, minimizable: true,
+          }),
+        ]).then(() => win.focus('main')).catch((e) => console.error(e)); // eslint-disable-line no-console
         Promise.all(winsLoaded).then(() => {
           I.splash.hidden = 1;
           D.cn.start();
@@ -219,21 +168,24 @@ const Console = console;
       D.ide2 = new D.IDE();
       I.splash.hidden = 1;
     }
-    if (!D.quit) D.quit = window.close;
-    window.onbeforeunload = (e) => {
+    const closeMain = D.desktop
+      ? () => D.host.win.close(D.host.win.current())
+      : () => window.close();
+    if (!D.quit) D.quit = closeMain;
+    // Whether the main window may close now; if not, it may close itself later.
+    const mayClose = () => {
       if (D.ide && D.ide.connected && !D.ide.closing) {
-        e.returnValue = false;
         setTimeout(() => {
           const quit = () => {
             D.ide.closing = true;
-            D.ide.w3500 && D.ide.w3500.close();
+            D.desktop && D.host.win.close('html3500').catch(() => {});
             if (D.spawned) {
               D.send('Exit', { code: 0 });
               // Wait for the disconnect message
             } else {
               D.send('Disconnect', { message: 'User shutdown request' });
               D.ide.connected = 0;
-              window.close();
+              closeMain();
             }
           };
           if (D.prf.sqp() && !(D.el && process.env.NODE_ENV === 'test')) {
@@ -243,16 +195,23 @@ const Console = console;
             quit();
           }
         }, 10);
-        return;
+        return false;
       }
-      try {
-        D.ipc && D.ipc.server.stop();
-        D.ide && D.prf.connectOnQuit() && D.commands.CNC();
-        if (D.ide && !D.ide.connected && D.desktop) D.wins[0].histWrite();
-      } finally {
-        window.onbeforeunload = null;
-      }
+      D.ide && D.prf.connectOnQuit() && D.commands.CNC();
+      if (D.ide && !D.ide.connected && D.desktop) D.wins[0].histWrite();
+      return true;
     };
+    if (!D.desktop) {
+      window.onbeforeunload = (e) => {
+        try {
+          if (!mayClose()) e.returnValue = false;
+        } finally {
+          e.returnValue === false || (window.onbeforeunload = null);
+        }
+      };
+    } else if (D.host.win.current() === 'main') {
+      D.host.win.onCloseRequested('main', mayClose);
+    }
 
     let platform = '';
     if (D.mac) platform = ' platform-mac';
