@@ -46,11 +46,12 @@ RIDE runs as a Tauri v2 app built from the `tauri-port` branch: it connects over
 - [Fix the session decoration error on connect under Tauri](tickets/019-tauri-session-decoration-error.md): a bug from `master` that hits both shells. When the decoration pass ran before the session log arrived, `se.lines` was empty and it threw. Fixed with a one-line guard in `se.js`; the bridge is unchanged. [connect-cdp.js](assets/connect-cdp.js) shows Tauri 0/10 and Electron 0/3, and smoke passes 7/7 in both shells.
 - [Port window bounds and the launch/main layout switch onto D.host.win](tickets/020-window-bounds-layouts.md): one shared `src/winstate.js` replaces `main.js`'s bounds code in both shells, with the same `winstate.json` meaning, read across shells. The window is shown after the first menu, which ends a height creep from `master`. A deferred re-close fixes Electron's async close veto. Tauri blocks the F5/Ctrl-R reload instead of confirming it. [bounds-cdp.js](assets/bounds-cdp.js) passes 48/48. Exe 8.77 MB.
 - [Bundle the Tauri RIDE for Windows](tickets/021-windows-bundle.md): the deliverable is the bare, portable `ride.exe` (8.77 MB, no side files). No Tauri installer is built. Its version is `4.8.<commit count>`, as in `mk` and About, injected by `src-tauri/tauri-cli.js`. CompanyName is now Dyalog Ltd. It runs under a fresh user profile, and smoke passes 7/7.
+- [Restage the frontend automatically during tauri dev](tickets/022-tauri-dev-restage.md): `tauri:dev` stages before Tauri starts, then a `stage-frontend.js --watch` watcher recopies changed `src/`/`lib/`/`style/`/HTML files and recompiles `.less`, so a devtools reload shows edits. Pages don't reload on their own. The watcher exits with the app. `tauri:build` is unchanged (8.77 MB, smoke 7/7).
 
 ## Not yet specified
 
 - **Packaging beyond Windows.** Bundle config for macOS `.app`/`.dmg` and Linux AppImage/`.deb`, Linux WebKitGTK quirks (IME, fonts, NVIDIA flicker), and the macOS paste prompt. This needs a way to build and run on those platforms, which this machine doesn't have. Windows ships as the bare `ride.exe` ([Bundle the Tauri RIDE for Windows](tickets/021-windows-bundle.md)).
-- **CI.** Whether CI builds the Tauri shell at all. Dev restaging is now [Restage the frontend automatically during tauri dev](tickets/022-tauri-dev-restage.md).
+- **CI.** Whether CI builds the Tauri shell at all.
 
 ## Out of scope
 

@@ -6,7 +6,7 @@
   "identifier": "com.dyalog.ride",
   "build": {
     "frontendDist": "../_/tauri-frontend",
-    "beforeDevCommand": "npm run tauri:stage",
+    "beforeDevCommand": "node src-tauri/stage-frontend.js --watch",
     "beforeBuildCommand": "npm run tauri:stage"
   },
   "app": {
