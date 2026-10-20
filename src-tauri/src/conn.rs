@@ -1,6 +1,6 @@
 // D.host.conn for the Tauri shell: sockets and RIDE message framing only.
 // Each frame is a 4-byte big-endian length (counting itself), the magic "RIDE",
-// then the UTF-8 payload. The protocol itself stays in cn.js.
+// then the UTF-8 payload. The protocol itself stays in cn.js. TLS is in tls.rs.
 
 use std::collections::HashMap;
 use std::io;
@@ -9,9 +9,15 @@ use std::sync::Mutex;
 use serde::Serialize;
 use tauri::ipc::Channel;
 use tauri::{Manager, Runtime, State, Webview};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
 use tokio::net::{TcpStream, lookup_host};
 use tokio::sync::{mpsc, oneshot};
+
+use crate::tls::{self, TlsOpts};
+
+trait Stream: AsyncRead + AsyncWrite + Unpin + Send {}
+impl<T: AsyncRead + AsyncWrite + Unpin + Send> Stream for T {}
+type Sock = Box<dyn Stream>;
 
 #[derive(Clone, Serialize)]
 pub struct ConnError {
@@ -23,8 +29,13 @@ pub struct ConnError {
 }
 
 impl ConnError {
-    fn new(code: &str, message: impl Into<String>) -> Self {
-        Self { name: "Error".into(), code: code.into(), message: message.into(), hostname: None }
+    pub fn new(code: &str, message: impl Into<String>) -> Self {
+        Self {
+            name: "Error".into(),
+            code: code.into(),
+            message: message.into(),
+            hostname: None,
+        }
     }
 }
 
@@ -42,8 +53,14 @@ enum Cmd {
 }
 
 enum Entry {
-    Pending { label: String, abort: oneshot::Sender<()> },
-    Open { label: String, tx: mpsc::UnboundedSender<Cmd> },
+    Pending {
+        label: String,
+        abort: oneshot::Sender<()>,
+    },
+    Open {
+        label: String,
+        tx: mpsc::UnboundedSender<Cmd>,
+    },
 }
 
 impl Entry {
@@ -72,7 +89,7 @@ fn io_code(e: &io::Error) -> &'static str {
     }
 }
 
-fn io_error(e: &io::Error, what: &str) -> ConnError {
+pub fn io_error(e: &io::Error, what: &str) -> ConnError {
     let code = io_code(e);
     ConnError::new(code, format!("{what} {code}: {e}"))
 }
@@ -107,26 +124,56 @@ async fn open(host: &str, port: u16) -> Result<TcpStream, ConnError> {
     if !errs.is_empty() {
         errs.push(e.clone());
         e.name = e.code.clone();
-        e.message = errs.iter().map(|x| x.message.as_str()).collect::<Vec<_>>().join("\n");
+        e.message = errs
+            .iter()
+            .map(|x| x.message.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
     }
     Err(e)
 }
 
-async fn read_loop(mut rd: tokio::net::tcp::OwnedReadHalf, ch: &Channel<Event>) -> Option<Event> {
+async fn read_loop(mut rd: ReadHalf<Sock>, secure: bool, ch: &Channel<Event>) -> Option<Event> {
+    use io::ErrorKind::*;
     let mut b: Vec<u8> = Vec::with_capacity(0x100000);
     let mut chunk = vec![0u8; 0x10000];
+    let mut started = false; // a message has arrived
     loop {
         let k = match rd.read(&mut chunk).await {
             Ok(0) => return Some(Event::Close),
             Ok(k) => k,
-            Err(e) => return Some(Event::Error(io_error(&e, "read"))),
+            // A TLS interpreter drops a client it won't serve without a close_notify,
+            // whether it's busy or wants a client certificate.
+            Err(e)
+                if secure
+                    && !started
+                    && matches!(
+                        e.kind(),
+                        UnexpectedEof | ConnectionReset | ConnectionAborted
+                    ) =>
+            {
+                return Some(Event::Error(ConnError {
+                    name: "Connection rejected".into(),
+                    ..ConnError::new(
+                        "EPROTO",
+                        "The interpreter closed the TLS connection. Either it is already serving another \
+                         Ride client, or it requires a client certificate it trusts.",
+                    )
+                }));
+            }
+            // Node also treats a missing close_notify as a normal end.
+            Err(e) if secure && e.kind() == UnexpectedEof => return Some(Event::Close),
+            Err(e) => return Some(Event::Error(tls::tls_error(&e, "read"))),
         };
         b.extend_from_slice(&chunk[..k]);
         let mut i = 0;
         while b.len() - i >= 4 {
             let n = i32::from_be_bytes(b[i..i + 4].try_into().unwrap());
             if n <= 8 {
-                return Some(Event::Error(ConnError::new("EPROTO", "Bad protocol message")));
+                return Some(Event::Error(ConnError::new(
+                    "EPROTO",
+                    "Bad protocol message",
+                )));
             }
             let n = n as usize;
             if b.len() - i < n {
@@ -134,6 +181,7 @@ async fn read_loop(mut rd: tokio::net::tcp::OwnedReadHalf, ch: &Channel<Event>) 
             }
             let m = String::from_utf8_lossy(&b[i + 8..i + n]).into_owned();
             i += n;
+            started = true;
             if ch.send(Event::Message(m)).is_err() {
                 return None; // the page is gone
             }
@@ -142,7 +190,7 @@ async fn read_loop(mut rd: tokio::net::tcp::OwnedReadHalf, ch: &Channel<Event>) 
     }
 }
 
-async fn write_loop(mut wr: tokio::net::tcp::OwnedWriteHalf, mut rx: mpsc::UnboundedReceiver<Cmd>) {
+async fn write_loop(mut wr: WriteHalf<Sock>, mut rx: mpsc::UnboundedReceiver<Cmd>) {
     while let Some(c) = rx.recv().await {
         match c {
             Cmd::Send(x) => {
@@ -163,13 +211,28 @@ pub async fn conn_connect<R: Runtime>(
     id: u32,
     host: String,
     port: u16,
+    tls: Option<TlsOpts>,
     events: Channel<Event>,
 ) -> Result<(), ConnError> {
+    let cfg = tls.map(|o| tls::config(&host, &o)).transpose()?;
+    let secure = cfg.is_some();
     let label = webview.label().to_string();
     let (abort, aborted) = oneshot::channel();
-    conns.0.lock().unwrap().insert(id, Entry::Pending { label: label.clone(), abort });
+    conns.0.lock().unwrap().insert(
+        id,
+        Entry::Pending {
+            label: label.clone(),
+            abort,
+        },
+    );
     let sock = tokio::select! {
-        r = open(&host, port) => r,
+        r = async {
+            let tcp = open(&host, port).await?;
+            Ok(match cfg {
+                Some(c) => Box::new(tls::handshake(c, &host, tcp).await?) as Sock,
+                None => Box::new(tcp) as Sock,
+            })
+        } => r,
         _ = aborted => Err(ConnError { name: "AbortError".into(), ..ConnError::new("ABORT", "Connection cancelled") }),
     };
     let sock = match sock {
@@ -179,20 +242,29 @@ pub async fn conn_connect<R: Runtime>(
             return Err(e);
         }
     };
-    let (rd, wr) = sock.into_split();
+    let (rd, wr) = tokio::io::split(sock);
     let (tx, rx) = mpsc::unbounded_channel();
     {
         let mut m = conns.0.lock().unwrap();
         // conn_abort or conn_reset may have dropped the pending entry while the connect completed
         if !matches!(m.get(&id), Some(Entry::Pending { .. })) {
-            return Err(ConnError { name: "AbortError".into(), ..ConnError::new("ABORT", "Connection cancelled") });
+            return Err(ConnError {
+                name: "AbortError".into(),
+                ..ConnError::new("ABORT", "Connection cancelled")
+            });
         }
-        m.insert(id, Entry::Open { label, tx: tx.clone() });
+        m.insert(
+            id,
+            Entry::Open {
+                label,
+                tx: tx.clone(),
+            },
+        );
     }
     tauri::async_runtime::spawn(write_loop(wr, rx));
     let app = webview.app_handle().clone();
     tauri::async_runtime::spawn(async move {
-        if let Some(ev) = read_loop(rd, &events).await {
+        if let Some(ev) = read_loop(rd, secure, &events).await {
             let _ = events.send(ev);
         }
         // Dropping every sender ends write_loop, which closes the socket. The id may
@@ -249,7 +321,11 @@ pub fn conn_abort(conns: State<'_, Conns>, id: u32) {
 pub fn conn_reset<R: Runtime>(webview: Webview<R>, conns: State<'_, Conns>) {
     let label = webview.label();
     let mut m = conns.0.lock().unwrap();
-    let ids: Vec<u32> = m.iter().filter(|(_, e)| e.label() == label).map(|(k, _)| *k).collect();
+    let ids: Vec<u32> = m
+        .iter()
+        .filter(|(_, e)| e.label() == label)
+        .map(|(k, _)| *k)
+        .collect();
     for id in ids {
         match m.remove(&id) {
             Some(Entry::Pending { abort, .. }) => {

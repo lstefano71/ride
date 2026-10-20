@@ -20,12 +20,13 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
   D.host.conn = {
     // o: {host, port, ssl, cert, key, subj, rootcertsdir}; signal: an AbortSignal
     connect(o, { signal } = {}) {
-      if (o.ssl) {
-        return Promise.reject(Object.assign(
-          new Error('TLS connections are not available in the Tauri shell yet.'),
-          { name: 'Not available', code: 'ENOTSUP' },
-        ));
-      }
+      // Rust reads the certificate files (src-tauri/src/tls.rs)
+      const tls = o.ssl ? {
+        cert: o.cert || null,
+        key: o.key || null,
+        rootcertsdir: o.rootcertsdir || null,
+        subj: !!o.subj,
+      } : null;
       const id = crypto.getRandomValues(new Uint32Array(1))[0];
       const ls = { message: [], error: [], close: [] };
       const early = []; // messages that arrive before onMessage is registered
@@ -73,7 +74,7 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
         .then(() => {
           if (signal && signal.aborted) throw aborted();
           return invoke('conn_connect', {
-            id, host: o.host, port: +o.port, events,
+            id, host: o.host, port: +o.port, tls, events,
           });
         })
         .then(() => {
