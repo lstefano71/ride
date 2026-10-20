@@ -2,7 +2,7 @@
 title: Build the Windows Electron and Tauri zips in GitHub Actions and release them
 type: wayfinder:task
 status: open
-assignee:
+assignee: copilot
 blocked_by: [023]
 ---
 

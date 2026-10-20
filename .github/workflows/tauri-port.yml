@@ -1,0 +1,133 @@
+# Builds portable Windows zips of the Electron and Tauri RIDE from the fork's tauri-port
+# branch. Every run uploads them as artifacts; a tauri-v<version> tag, or a dispatch with
+# "release" ticked, also publishes a GitHub release. Dyalog's Jenkinsfile is untouched.
+name: Windows zips
+
+on:
+  push:
+    branches: [tauri-port]
+    tags: ['tauri-v*']
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Publish a GitHub release tagged tauri-v<version>
+        type: boolean
+        default: false
+      intro:
+        description: Optional release notes intro
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the version counts every commit; release notes need old tags
+
+      # C: is slow on hosted Windows runners; keep the npm, cargo and Electron caches on D:.
+      # electron's postinstall reads electron_config_cache; @electron/packager (mk) only
+      # uses %LOCALAPPDATA%\electron\Cache, which is cached as it is.
+      - name: Move caches to the D drive
+        run: |
+          $t = '${{ runner.temp }}'
+          "npm_config_cache=$t\npm-cache" >> $env:GITHUB_ENV
+          "CARGO_HOME=$t\cargo" >> $env:GITHUB_ENV
+          "electron_config_cache=$t\electron" >> $env:GITHUB_ENV
+          "$env:USERPROFILE\.cargo\bin" >> $env:GITHUB_PATH
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}\electron
+            ~\AppData\Local\electron\Cache
+          key: electron-${{ hashFiles('package-lock.json') }}
+
+      - run: npm ci
+
+      - name: Version
+        id: v
+        run: |
+          $v = node -p "require('./src-tauri/version').about"
+          "version=$v" >> $env:GITHUB_OUTPUT
+          echo "RIDE $v"
+
+      - name: Build Electron (win32 ia32)
+        run: npm run build w
+
+      - name: Build Tauri (x64)
+        run: npm run tauri:build
+
+      - name: Zip
+        run: |
+          $v = '${{ steps.v.outputs.version }}'
+          $e = '_\ride48\Ride-4.8-win32-ia32'
+          Rename-Item "$e\Ride-4.8.exe" Ride.exe
+          New-Item -ItemType Directory dist | Out-Null
+          7z a -tzip "dist\ride-electron-$v-win-ia32.zip" ".\$e\*" | Out-Null
+          if ($LASTEXITCODE) { throw '7z failed' }
+          7z a -tzip "dist\ride-tauri-$v-win-x64.zip" .\src-tauri\target\release\ride.exe .\src-tauri\target\release\ride.pdb | Out-Null
+          if ($LASTEXITCODE) { throw '7z failed' }
+          Get-ChildItem dist | Format-Table Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ride-electron-${{ steps.v.outputs.version }}-win-ia32
+          path: dist/ride-electron-*.zip
+          compression-level: 0
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ride-tauri-${{ steps.v.outputs.version }}-win-x64
+          path: dist/ride-tauri-*.zip
+          compression-level: 0
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/tauri-v') || inputs.release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INTRO: ${{ inputs.intro }}
+        run: |
+          $tag = 'tauri-v${{ steps.v.outputs.version }}'
+          $intro = "$env:INTRO"
+          if ('${{ github.ref_type }}' -eq 'tag') {
+            if ('${{ github.ref_name }}' -ne $tag) {
+              throw "Tag ${{ github.ref_name }} doesn't match the build version; expected $tag"
+            }
+            # checkout can leave an annotated tag lightweight; refetch it to read its message
+            git fetch --force origin "refs/tags/${tag}:refs/tags/${tag}"
+            if ((git cat-file -t $tag) -eq 'tag') {
+              $intro = (git tag -l --format='%(contents)' $tag) -join "`n"
+            }
+          }
+          $prev = git describe --tags --abbrev=0 --match 'tauri-v*' HEAD~1 2>$null
+          if (-not $prev) { $prev = '307003ef' }
+          $notes = @()
+          if ($intro.Trim()) { $notes += $intro.Trim(), '' }
+          $notes += "Changes since ${prev}:", ''
+          $notes += git log "$prev..HEAD" --first-parent --format='- %s (%h)'
+          $notes -join "`n" | Set-Content -Encoding utf8 notes.md
+          Get-Content notes.md
+          gh release create $tag (Get-ChildItem dist\*.zip).FullName --target '${{ github.sha }}' --title "RIDE $tag" --notes-file notes.md
