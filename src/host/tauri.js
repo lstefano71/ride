@@ -8,11 +8,81 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
   D.desktop = true;
   D.host = { kind: 'tauri', ready: Promise.resolve() };
 
-  // Implemented in Rust by "Bridge the RIDE TCP connection through Rust".
+  const { invoke, Channel } = window.__TAURI__.core;
+  const connError = (e) => (e && typeof e === 'object'
+    ? Object.assign(new Error(e.message), e)
+    : Object.assign(new Error(String(e)), { code: 'EIO' }));
+  const aborted = () => Object.assign(new Error('Connection cancelled'), { name: 'AbortError', code: 'ABORT' });
+  // A reload leaves the previous page's sockets open in Rust; free them first.
+  const reset = invoke('conn_reset').catch(() => {});
+
+  // conn: whole RIDE messages; Rust (src-tauri/src/conn.rs) owns the socket and framing.
   D.host.conn = {
-    connect: () => Promise.reject(Object.assign(
-      new Error('Connecting is not available in the Tauri shell yet.'),
-      { name: 'Not available', code: 'ENOTSUP' },
-    )),
+    // o: {host, port, ssl, cert, key, subj, rootcertsdir}; signal: an AbortSignal
+    connect(o, { signal } = {}) {
+      if (o.ssl) {
+        return Promise.reject(Object.assign(
+          new Error('TLS connections are not available in the Tauri shell yet.'),
+          { name: 'Not available', code: 'ENOTSUP' },
+        ));
+      }
+      const id = crypto.getRandomValues(new Uint32Array(1))[0];
+      const ls = { message: [], error: [], close: [] };
+      const early = []; // messages that arrive before onMessage is registered
+      const emit = (t, x) => ls[t].forEach((f) => f(x));
+      const events = new Channel();
+      const dispatch = ({ t, x }) => {
+        if (t === 'message') ls.message.length ? emit('message', x) : early.push(x);
+        else if (t === 'error') emit('error', connError(x));
+        else emit('close');
+      };
+      // Events can beat conn_connect's reply; hold them until the caller has had
+      // the tick after resolve to register listeners, as with Node sockets.
+      let held = [];
+      events.onmessage = (ev) => (held ? held.push(ev) : dispatch(ev));
+      const release = () => setTimeout(() => { const h = held; held = null; h.forEach(dispatch); });
+      // Sends are batched behind the one in flight, so invokes can't reorder them.
+      let inflight = Promise.resolve();
+      let batch = null;
+      const conn = {
+        send(s) {
+          if (!batch) {
+            const b = { msgs: [] };
+            b.p = inflight.then(() => {
+              batch === b && (batch = null);
+              return invoke('conn_send', { id, msgs: b.msgs });
+            }).catch((e) => { throw connError(e); });
+            inflight = b.p.catch(() => {});
+            batch = b;
+          }
+          batch.msgs.push(s);
+          return batch.p;
+        },
+        onMessage(f) { ls.message.push(f); early.splice(0).forEach(f); },
+        onError(f) { ls.error.push(f); },
+        onClose(f) { ls.close.push(f); },
+        close() { return invoke('conn_close', { id }); },
+      };
+      const abort = () => invoke('conn_abort', { id });
+      if (signal) {
+        if (signal.aborted) return Promise.reject(aborted());
+        signal.addEventListener('abort', abort, { once: true });
+      }
+      const done = () => signal && signal.removeEventListener('abort', abort);
+      return reset
+        .then(() => {
+          if (signal && signal.aborted) throw aborted();
+          return invoke('conn_connect', {
+            id, host: o.host, port: +o.port, events,
+          });
+        })
+        .then(() => {
+          done();
+          // an abort that raced ahead of conn_connect registering the attempt
+          if (signal && signal.aborted) { conn.close(); throw aborted(); }
+          release();
+          return conn;
+        }, (e) => { done(); throw e instanceof Error ? e : connError(e); });
+    },
   };
 }());
