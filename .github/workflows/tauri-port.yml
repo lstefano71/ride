@@ -1,6 +1,7 @@
 # Builds portable Windows zips of the Electron and Tauri RIDE from the fork's tauri-port
 # branch. Every run uploads them as artifacts; a tauri-v<version> tag, or a dispatch with
-# "release" ticked, also publishes a GitHub release. Dyalog's Jenkinsfile is untouched.
+# "release" ticked, also publishes a GitHub release. GitHub only offers "Run workflow" when
+# this file is on the repo's default branch. Dyalog's Jenkinsfile is untouched.
 name: Windows zips
 
 on:
