@@ -15,8 +15,8 @@
     "clean": "node ./mk c",
     "tauri": "tauri",
     "tauri:stage": "npm run css && node src-tauri/stage-frontend.js",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:dev": "node src-tauri/tauri-cli.js dev",
+    "tauri:build": "node src-tauri/tauri-cli.js build"
   },
   "repository": ".",
   "dependencies": {

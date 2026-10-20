@@ -33,6 +33,7 @@
   "bundle": {
     "active": false,
     "targets": "all",
+    "publisher": "Dyalog Ltd",
     "copyright": "(c) 2014-2026 Dyalog Ltd",
     "category": "DeveloperTool",
     "shortDescription": "Cross-platform IDE for Dyalog APL",

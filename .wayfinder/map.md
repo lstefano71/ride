@@ -45,14 +45,16 @@ RIDE runs as a Tauri v2 app built from the `tauri-port` branch: it connects over
 - [Move process, env, file and misc calls onto D.host.sys and D.host.fs](tickets/018-host-sys-fs.md): env/argv, New Session relaunch, devtools, print, openExternal, clipboard paste, protocol log, drag-and-drop, `RIDE_JS`/`RIDE_CSS`, demo scripts and About work in both shells ([sys-cdp.js](assets/sys-cdp.js) 15/15). The Tauri snapshot is injected synchronously. `RIDE_JS`/`RIDE_CSS` are now read as text. Drag-and-drop, broken on `master` since Electron 35, is fixed. Spawn/listen/SSH and IME stay on `D.el` as out of scope. Exe 8.77 MB.
 - [Fix the session decoration error on connect under Tauri](tickets/019-tauri-session-decoration-error.md): a bug from `master` that hits both shells. When the decoration pass ran before the session log arrived, `se.lines` was empty and it threw. Fixed with a one-line guard in `se.js`; the bridge is unchanged. [connect-cdp.js](assets/connect-cdp.js) shows Tauri 0/10 and Electron 0/3, and smoke passes 7/7 in both shells.
 - [Port window bounds and the launch/main layout switch onto D.host.win](tickets/020-window-bounds-layouts.md): one shared `src/winstate.js` replaces `main.js`'s bounds code in both shells, with the same `winstate.json` meaning, read across shells. The window is shown after the first menu, which ends a height creep from `master`. A deferred re-close fixes Electron's async close veto. Tauri blocks the F5/Ctrl-R reload instead of confirming it. [bounds-cdp.js](assets/bounds-cdp.js) passes 48/48. Exe 8.77 MB.
+- [Bundle the Tauri RIDE for Windows](tickets/021-windows-bundle.md): the deliverable is the bare, portable `ride.exe` (8.77 MB, no side files). No Tauri installer is built. Its version is `4.8.<commit count>`, as in `mk` and About, injected by `src-tauri/tauri-cli.js`. CompanyName is now Dyalog Ltd. It runs under a fresh user profile, and smoke passes 7/7.
 
 ## Not yet specified
 
-- **Packaging beyond Windows.** Bundle config for macOS `.app`/`.dmg` and Linux AppImage/`.deb`, Linux WebKitGTK quirks (IME, fonts, NVIDIA flicker), and the macOS paste prompt. This needs a way to build and run on those platforms, which this machine doesn't have. Windows packaging is now [Bundle the Tauri RIDE for Windows](tickets/021-windows-bundle.md).
+- **Packaging beyond Windows.** Bundle config for macOS `.app`/`.dmg` and Linux AppImage/`.deb`, Linux WebKitGTK quirks (IME, fonts, NVIDIA flicker), and the macOS paste prompt. This needs a way to build and run on those platforms, which this machine doesn't have. Windows ships as the bare `ride.exe` ([Bundle the Tauri RIDE for Windows](tickets/021-windows-bundle.md)).
 - **CI.** Whether CI builds the Tauri shell at all. Dev restaging is now [Restage the frontend automatically during tauri dev](tickets/022-tauri-dev-restage.md).
 
 ## Out of scope
 
+- **Windows installer for the Tauri build** (NSIS/MSI). The destination's single exe is the bare `ride.exe`; installing it is left to Dyalog's WiX scripts. Ruled out in [Bundle the Tauri RIDE for Windows](tickets/021-windows-bundle.md).
 - **Spawning an interpreter, listen mode, SSH connections.** Not needed for the experiment.
 - **Windows APL IME installer** (`windows-ime/`). Installer component, not app functionality.
 - **Browser mode** (interpreter serving RIDE over HTTP). Not a constraint; may break.

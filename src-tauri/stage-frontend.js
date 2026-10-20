@@ -6,11 +6,10 @@
 // rewritten to match.
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const version = require('./version');
 
 const root = path.resolve(__dirname, '..');
 const out = path.join(root, '_', 'tauri-frontend');
-const sh = (x) => execSync(x, { cwd: root, encoding: 'utf8' }).trim();
 
 const files = [
   'index.html', 'about.html', 'dialog.html', 'empty.html', 'status.html', 'log.html', 'html3500.html',
@@ -41,15 +40,8 @@ fs.readdirSync(path.join(root, 'style'))
   .forEach((f) => copy(`style/${f}`));
 
 // Same shape as the version.js `mk` generates.
-const pj = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-const v = `${pj.version.replace(/\.0$/, '')}.${sh('git rev-list --count HEAD')}`;
-const vi = {
-  versionInfo: {
-    version: v,
-    date: sh('git show -s HEAD --pretty=format:%ci'),
-    rev: sh('git rev-parse HEAD'),
-  },
-};
+const v = version.about;
+const vi = { versionInfo: { version: v, date: version.date(), rev: version.rev() } };
 fs.mkdirSync(path.join(out, '_'), { recursive: true });
 fs.writeFileSync(path.join(out, '_', 'version.js'), `D=${JSON.stringify(vi)}`);
 
