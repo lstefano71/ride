@@ -43,3 +43,7 @@ where `{CODE}` is one of
 
 
 (`#` starts a comment)
+
+## Tauri shell
+
+The `tauri-port` branch also runs Ride in a [Tauri](https://v2.tauri.app) shell, which makes a single portable `ride.exe` on Windows. To build it, install a Rust toolchain and run `npm run tauri:build`. See [The Tauri port](docs/dev/tauri-port.md) for how to build and check it and the design behind it, and [Taking changes from master into tauri-port](docs/dev/porting-from-master.md) for merging upstream changes.
