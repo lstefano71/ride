@@ -35,6 +35,20 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
   const wv = window.__TAURI__.webviewWindow;
   const me = wv.getCurrentWebviewWindow();
   const { label } = me;
+  // Electron shows document.title as the window title; Tauri doesn't, so mirror it.
+  let shownTitle = null;
+  const syncTitle = () => {
+    const t = document.title;
+    if (!t || t === shownTitle) return;
+    shownTitle = t;
+    me.setTitle(t).catch(() => {});
+  };
+  const watchTitle = () => {
+    syncTitle();
+    document.head && new MutationObserver(syncTitle)
+      .observe(document.head, { childList: true, subtree: true, characterData: true });
+  };
+  document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', watchTitle) : watchTitle();
   const handlers = {}; // type → [fn(data, fromLabel)]
   const IPC = 'ride-ipc';
   // Events emitted before a window's listener is in place are lost, so pages wait for
@@ -71,8 +85,51 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
     });
   const onWin = (f) => (l, ...a) => winOf(l).then((w) => f(w, ...a))
     .catch((e) => { throw winError(e); });
-  const { LogicalSize } = window.__TAURI__.dpi;
-  const notYet = () => Promise.reject(Object.assign(new Error('Not supported yet'), { code: 'ENOTSUP' }));
+  const { LogicalSize, LogicalPosition } = window.__TAURI__.dpi;
+  // Bounds are logical (DIP) like Electron's: each window and monitor is scaled by its own factor.
+  const contentBounds = (w) => Promise.all([w.innerPosition(), w.innerSize(), w.scaleFactor()])
+    .then(([p, s, f]) => ({
+      x: Math.round(p.x / f),
+      y: Math.round(p.y / f),
+      width: Math.round(s.width / f),
+      height: Math.round(s.height / f),
+    }));
+  // Tauri positions windows by their outer corner, so offset by the frame.
+  const setContentBounds = (w, b) => Promise.all([
+    w.innerPosition(), w.outerPosition(), w.scaleFactor(),
+  ]).then(([ip, op, f]) => w.setSize(new LogicalSize(b.width, b.height))
+    .then(() => w.setPosition(new LogicalPosition(
+      b.x - (ip.x - op.x) / f,
+      b.y - (ip.y - op.y) / f,
+    ))));
+  const overlap = (a, b) => Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x))
+    * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+  // The work area of the monitor b overlaps most (else the primary), as getDisplayMatching.
+  const displayFor = (b) => Promise.all([
+    window.__TAURI__.window.availableMonitors(), window.__TAURI__.window.primaryMonitor(),
+  ]).then(([ms, pm]) => {
+    const area = (m) => {
+      const { position: p, size: s } = m.workArea;
+      const f = m.scaleFactor;
+      return {
+        x: Math.round(p.x / f),
+        y: Math.round(p.y / f),
+        width: Math.round(s.width / f),
+        height: Math.round(s.height / f),
+      };
+    };
+    let best = null;
+    let most = 0;
+    ms.forEach((m) => {
+      const a = area(m);
+      const o = overlap(a, b);
+      if (o > most) { most = o; best = a; }
+    });
+    const m = pm || ms[0];
+    return best || (m ? area(m) : {
+      x: 0, y: 0, width: window.screen.availWidth, height: window.screen.availHeight,
+    });
+  });
   D.host.win = {
     current: () => label,
     // o: {parent, bounds, hidden, modal, title, minWidth, minHeight, resizable, minimizable,
@@ -89,7 +146,9 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
           visible: !o.hidden,
           focus: !o.hidden,
         };
+        // Without a position Electron centres the window; do the same.
         if (b.x != null && b.y != null) Object.assign(opts, { x: b.x, y: b.y });
+        else opts.center = true;
         ['parent', 'title', 'minWidth', 'minHeight', 'resizable', 'minimizable', 'maximizable']
           .forEach((k) => { o[k] != null && (opts[k] = o[k]); });
         return new Promise((resolve, reject) => {
@@ -108,10 +167,9 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
     setTitle: onWin((w, t) => w.setTitle(t)),
     setContentSize: onWin((w, width, height) => w.setSize(new LogicalSize(width, height))),
     setMinSize: onWin((w, width, height) => w.setMinSize(new LogicalSize(width, height))),
-    // Floating editors need these: Port floating windows to Tauri windows.
-    getBounds: notYet,
-    setBounds: notYet,
-    displayFor: notYet,
+    getBounds: onWin(contentBounds),
+    setBounds: onWin(setContentBounds),
+    displayFor: (b) => displayFor(b).catch((e) => { throw winError(e); }),
     // fn() → boolean or Promise<boolean>: whether the window may close.
     onCloseRequested: (l, fn) => winOf(l).then((w) => w.onCloseRequested((e) => Promise.resolve()
       .then(fn)

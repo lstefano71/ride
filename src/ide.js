@@ -72,10 +72,10 @@ D.IDE = function IDE(opts = {}) {
       });
       const j = i < 0 ? 0 : (i + a.length + x) % a.length;
       const w = a[j];
-      if (!w.bwId) D.elw.focus();
+      if (!w.bwId && D.desktop) D.host.win.focus('main');
       w.focus(); return !1;
     };
-    D.el && D.prf.floating() && D.IPC_CreateWindow(1);
+    D.desktop && D.prf.floating() && D.IPC_CreateWindow(1);
   }
   // We need to be able to temporarily block the stream of messages coming from socket.io
   // Creating a floating window can only be done asynchronously and it's possible that a message
@@ -707,10 +707,10 @@ D.IDE = function IDE(opts = {}) {
       const editorOpts = { id: w, name: ee.name, tc: ee.debugger };
       !editorOpts.tc && (ide.hadErr = -1);
       ide.block(); // unblock the message queue once monaco ready
-      if (D.el && D.prf.floating() && !ide.dead) {
+      if (D.desktop && D.prf.floating() && !ide.dead) {
         D.IPC_LinkEditor({ editorOpts, ee });
         done = 1;
-      } else if (D.elw && !D.elw.isFocused()) D.elw.focus();
+      } else if (D.desktop) D.host.win.focus('main');
       if (done) return;
       const ed = new D.Ed(ide, editorOpts);
       ed.focusTS = +new Date();
@@ -943,7 +943,7 @@ D.IDE.prototype = {
   },
   focusWin(w) {
     if (this.hadErr === 0) {
-      D.elw && D.elw.focus();
+      D.desktop && D.host.win.focus('main');
       this.wins[0].focus();
       delete this.wins[0].hadErrTmr;
       this.hadErr = -1;
@@ -951,7 +951,7 @@ D.IDE.prototype = {
   },
   focusMRUWin() { // most recently used
     const w = this.getMRUWin();
-    D.elw && !w.bwId && D.elw.focus();
+    D.desktop && !w.bwId && D.host.win.focus('main');
     w.focus();
   },
   getMRUWin(tracer) { // most recently focused window (filtered by tracer if set)

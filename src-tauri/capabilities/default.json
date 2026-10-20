@@ -9,7 +9,8 @@
     "status",
     "about",
     "log",
-    "html3500"
+    "html3500",
+    "editor*"
   ],
   "permissions": [
     "core:default",
@@ -21,6 +22,7 @@
     "core:window:allow-destroy",
     "core:window:allow-set-title",
     "core:window:allow-set-size",
+    "core:window:allow-set-position",
     "core:window:allow-set-min-size",
     "core:webview:allow-create-webview-window",
     "dialog:allow-message",

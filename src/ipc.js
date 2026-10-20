@@ -94,14 +94,19 @@
     });
   };
   let winSeq = 0;
+  let starting = 0; // editor windows created but not yet registered (browserCreated)
   D.IPC_CreateWindow = function IPCCreateWindow(seq) {
     winSeq += 1;
+    starting += 1;
     const n = winSeq;
     WindowRect(seq, D.prf.editWins()).then((bounds) => D.host.win.open(
       `editor${n}`,
       `index.html?type=editor&winId=${n}`,
       { parent: 'main', bounds, hidden: true },
-    )).catch((e) => console.error(e)); // eslint-disable-line no-console
+    )).catch((e) => {
+      starting -= 1;
+      console.error(e); // eslint-disable-line no-console
+    });
   };
 
   D.IPC_Server = function IPCServer() {
@@ -140,6 +145,7 @@
       D.ide && D.ide.focusMRUWin();
     });
     on('browserCreated', (winId, from) => {
+      starting = Math.max(0, starting - 1);
       const wp = new D.IPC_WindowProxy(winId, from);
       send(from, 'caption', D.ide.caption);
       D.pwins.push(wp);
@@ -215,7 +221,8 @@
     if (!D.pendingEditors.length) return;
     let wp = D.prf.floatSingle() ? D.pwins[0] : D.pwins.find((w) => w.id < 0);
     if (!wp) {
-      D.IPC_CreateWindow(D.pendingEditors[0].editorOpts.id);
+      // a window still starting takes the pending editor once it registers
+      starting < D.pendingEditors.length && D.IPC_CreateWindow(D.pendingEditors[0].editorOpts.id);
       return;
     }
     if (wp.id > 0) wp = Object.assign(new D.IPC_WindowProxy(), wp);

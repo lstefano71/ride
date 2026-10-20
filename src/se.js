@@ -587,7 +587,7 @@ D.Se.prototype = {
     while (p) {
       p.setActiveContentItem && p.setActiveContentItem(q); q = p; p = p.parent;
     } // reveal in golden layout
-    D.elw && D.elw.focus();
+    D.desktop && D.host.win.focus('main');
     window.focused || window.focus();
     this.me.focus();
     this.ide.setCursorPosition(this.me.getPosition(), this.me.getModel().getLineCount());

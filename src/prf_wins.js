@@ -23,7 +23,7 @@
       q = J.wins;
       q.fw.onchange = updEnabled;
       q.fs.onchange = updEnabled;
-      if (!D.el) {
+      if (!D.desktop) {
         D.prf.floating() && D.prf.floating(0);
         q.fw.disabled = true;
       }
