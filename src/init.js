@@ -121,14 +121,8 @@ const Console = console;
         D.IPC_Client(+qp.get('winId'));
         I.splash.hidden = 1;
       } else if (D.host.kind === 'tauri') {
-        // The Connect page (cn.js) still needs Node; it reaches Tauri with
-        // "Move cn.js to a plain script on a message-level connection".
         I.splash.hidden = 1;
-        const p = document.createElement('div');
-        p.id = 'host_pending';
-        p.style = 'position:absolute;top:40%;width:100%;text-align:center';
-        p.textContent = 'Connect page not yet ported to Tauri.';
-        document.body.appendChild(p);
+        D.cn.start();
       } else {
         const winsLoaded = D.IPC_Server();
         const appid = D.ipc.config.appspace;
@@ -196,7 +190,7 @@ const Console = console;
         D.elw.focus();
         Promise.all(winsLoaded).then(() => {
           I.splash.hidden = 1;
-          nodeRequire(`${__dirname}/src/cn`)();
+          D.cn.start();
         });
       }
     } else {

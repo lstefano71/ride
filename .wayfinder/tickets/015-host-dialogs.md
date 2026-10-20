@@ -17,3 +17,4 @@ Follow the interface in [Design the host adapter interface](007-design-host-adap
 - `util.js:105`, `218`, `303`, `309`, `316` (in Tauri these currently fall back to `alert`/browser branches)
 - `km.js:131` (OWS)
 - `ide.js:1063` (unsaved-changes prompt, with `onCloseRequested`)
+- `cn.js` `browse()` (handed over by [Move cn.js to a plain script on a message-level connection](013-cn-message-level-connection.md#resolution)): returns early under Tauri, so the log/cert/key/root-certs `...` buttons do nothing there.

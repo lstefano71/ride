@@ -19,3 +19,4 @@ Follow the interface in [Design the host adapter interface](007-design-host-adap
 - `init.js`: `D.openExternal`/`window.open` override, drag-and-drop, `RIDE_JS`/`RIDE_CSS`
 - `demo.js:41`, `47` (`RIDE_DEMO_SCRIPT`, `DMR`)
 - `prf_lyt.js:43`, `prf_shc.js:149`, `prf_wins.js:127` (print)
+- `cn.js` (handed over by [Move cn.js to a plain script on a message-level connection](013-cn-message-level-connection.md#resolution)), each guarded by `D.el` and empty under Tauri: `start()`'s argv/env (`-c`, `RIDE_CONNECT`, `RIDE_LISTEN`, `RIDE_SPAWN`, `RIDE_LOG`, `RIDE_CONF`, `DYALOG_SPAWN`, `open_file`), `penv` (`RIDE_CONNECT_TIMEOUT`, `RIDE_AUTO_START`, `USER`), `defaultProtocolLogFile` (temp dir + pid), the protocol log `appendFileSync` in `log`, F12 devtools in `I.cn.onkeyup`, and `localhosts` (`os.networkInterfaces`, which feeds `D.isLocalInterpreter`; Tauri falls back to `localhost`/`127.0.0.1`/`::1`).

@@ -18,3 +18,4 @@ Follow the interface in [Design the host adapter interface](007-design-host-adap
 - `se.js:211`, `223` (history)
 - `prf_col.js:202` (winstate theme)
 - `init.js` `onbeforeunload`: `D.el` guard on `histWrite`
+- `cn.js` (handed over by [Move cn.js to a plain script on a message-level connection](013-cn-message-level-connection.md#resolution)): `cnFile`, the load in `showPage`, and `save()` are guarded by `fs` (Node). Under Tauri the page starts from one default `connect` entry and saves nothing.

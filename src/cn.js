@@ -1,4 +1,5 @@
-// Connect page, loaded only when running in Electron
+// Connect page and interpreter connection. Sets D.cn.
+// The socket and message framing live in D.host.conn; the RIDE protocol stays here.
 {
   let log;
   let $sel = $(); // $sel:selected item(s)
@@ -6,48 +7,53 @@
   let q; // a dictionary of DOM elements whose ids start with "cn_", keyed by the rest of the id
   const interpreters = [];
   let interpretersSSH = []; // local interpreters and those listed through ssh
-  let clt; // client, TCP connection to interpreter
+  let clt; // client, a D.host.conn connection to the interpreter
   let child; // a ChildProcess instance, the result from spawn()
   let srv; // server, used to listen for connections from interpreters
-  const rq = nodeRequire;
-  const fs = rq('fs');
-  const cp = rq('child_process');
-  const home = rq('os').homedir();
-  const nets = rq('os').networkInterfaces();
-  const localhosts = [...Object.keys(nets).map((intf) => nets[intf].map((k) => k.address)).flat(), 'localhost'];
-  const net = rq('net');
-  const path = rq('path');
+  // Node is reachable only in the Electron shell. The sites below that use it move onto
+  // D.host with their area tickets; until then they do nothing under Tauri. Spawn, listen
+  // and SSH are out of scope for Tauri and stay Electron-only.
+  const rq = D.el ? nodeRequire : null;
+  const fs = rq && rq('fs');
+  const cp = rq && rq('child_process');
+  const os = rq && rq('os');
+  const net = rq && rq('net');
+  const path = rq && rq('path');
+  const penv = D.el ? process.env : {};
+  const home = os ? os.homedir() : '';
+  const nets = os ? os.networkInterfaces() : {};
+  const localhosts = [
+    ...Object.keys(nets).map((intf) => nets[intf].map((k) => k.address)).flat(),
+    'localhost', '127.0.0.1', '::1',
+  ];
   const untildify = (x) => (x && home ? x.replace(/^~(?=$|\/|\\)/, home) : x);
   const { esc } = D.util;
-  const user = D.el ? (process.env.USER || process.env.USERNAME || '') : '';
+  const user = D.el ? (penv.USER || penv.USERNAME || '') : '';
   const MIN_V = [15, 0];
   const KV = /^([a-z_]\w*)=(.*)$/i;
   const WS = /^\s*$/; // KV:regexes for parsing env vars
   const HP = /^([^:]+|\[[^\]]+\])?(?::(\d+)?(\+)?)?$/; // regex for parsing host and port
   const pathNotFound = /The system cannot find the path specified/; // regex to check response from ssh exec
   const maxl = 1000;
-  const cnFile = `${D.el.app.getPath('userData')}/connections.json`;
+  const cnFile = D.el && `${D.el.app.getPath('userData')}/connections.json`;
   let protocolLogFile;
-  const defaultProtocolLogFile = path.join(
+  const defaultProtocolLogFile = D.el ? path.join(
     D.el.app.getPath('temp'),
     `Ride-${D.versionInfo.version}-${D.el.process.pid}.log`,
-  );
+  ) : '';
   const trunc = (x) => (x.length > maxl ? `${x.slice(0, maxl - 3)}...` : x);
   const shEsc = (x) => `'${x.replace(/'/g, "'\\''")}'`; // shell escape
-  const toBuf = (x) => {
-    const b = Buffer.from(`xxxxRIDE${x}`);
-    b.writeInt32BE(b.length, 0);
-    return b;
-  };
   const sendEach = (x) => {
     if (clt) {
-      x.forEach((y) => log(`send ${trunc(y)}`));
-      clt.write(Buffer.concat(x.map(toBuf)));
+      x.forEach((y) => {
+        log(`send ${trunc(y)}`);
+        clt.send(y);
+      });
     }
   };
   const dyalogArgs = (args) => {
-    const i = D.el.process.argv.indexOf('--');
-    if (!D.el || i < 0) return args;
+    const i = D.el ? D.el.process.argv.indexOf('--') : -1;
+    if (i < 0) return args;
     return D.el.process.argv.slice(1 + i).concat(args);
   };
   // compare two versions of the form [major,minor]
@@ -62,18 +68,20 @@
       q.fetch.disabled = 0;
     }
   };
+  // x: strings for $.err, or an error: a Node Error (SSH, spawn, listen) or a D.host.conn
+  // error {name, code, message, hostname}
   const err = (...x) => {
     D.tmr && clearTimeout(D.tmr);
     delete D.tmr;
     hideDlgs();
     const [e] = x;
-    if (!(e instanceof Error)) {
+    if (!e || typeof e !== 'object') {
       $.err(...x);
     } else if (e.code === 'ENOTFOUND') {
       $.err(`The host "${e.hostname}" could not be found.`, 'Host not found');
     } else if (e.errors && e.errors.length > 1) {
       $.err(e.errors.map((y) => y.message).join('\n'), e.code);
-    } else if (!['ECONNRESET', 'ETIMEDOUT'].includes(e.code)) $.err(e.message, e.name);
+    } else if (!['ECONNRESET', 'ETIMEDOUT', 'ABORT'].includes(e.code)) $.err(e.message, e.name);
   };
   const passwdPrompt = (text, title) => {
     setTimeout(() => D.util.stringDialog(
@@ -112,6 +120,7 @@
   };
   const getLocalInterpreters = () => { // collect information about installed interpreters
     interpreters.splice(0);
+    if (!D.el) return; // starting an interpreter is Electron-only
     try {
       if (/^win/.test(process.platform)) {
         const s = cp.execSync(
@@ -219,6 +228,7 @@
       );
       return;
     }
+    if (!fs) return; // the connections file reaches Tauri with D.host.store
     if (fs.existsSync(cnFile) && ((+fs.statSync(cnFile).mtime) !== D.conns_modified)) {
       const r = $.confirm('Connections file has been modified, do you want to overwrite with your changes?');
       if (!r) return;
@@ -308,7 +318,7 @@
         $.err('"Interpreter" is required', () => { q.exe.focus(); });
         return 0;
       }
-      if (!!x.cwd && !fs.existsSync(untildify(x.cwd))) {
+      if (!!x.cwd && fs && !fs.existsSync(untildify(x.cwd))) {
         $.err(`${q.cwd.labels[0].innerText} "${untildify(x.cwd)}" does not exist`, () => { q.cwd.focus(); });
         return 0;
       }
@@ -321,56 +331,35 @@
     }
     return 1;
   };
-  const initInterpreterConn = () => {
+  // c: a D.host.conn connection; the handshake and protocol run here
+  const initInterpreterConn = (c) => {
+    clt = c;
     hideDlgs();
-    nodeRequire('electron').ipcRenderer.send('save-win', false);
-    let b = Buffer.alloc(0x100000);
-    let ib = 0; // ib:offset in b
-    let nb = 0; // nb:length in b
+    D.el && nodeRequire('electron').ipcRenderer.send('save-win', false);
     let old; // old:have we warned about an old interpreter?
     let handshakeDone = false;
-    clt.on('data', (x) => {
-      if (nb + x.length > b.length) {
-        const r = Buffer.alloc(2 ** Math.ceil(Math.log(nb + x.length) / Math.log(2)));
-        b.copy(r, 0, ib, ib + nb);
-        ib = 0;
-        b = r;
-        log(`resized recv buffer to ${b.length}`);
-      } else if (ib + nb + x.length > b.length) {
-        b.copy(b, 0, ib, ib + nb);
-        ib = 0;
-      }
-      x.copy(b, ib + nb, 0, x.length);
-      nb += x.length;
-      let n; // message length
-      while (nb >= 4 && (n = b.readInt32BE(ib)) <= nb) {
-        if (n <= 8) { err('Bad protocol message'); break; }
-        const m = `${b.slice(ib + 8, ib + n)}`;
-        ib += n;
-        nb -= n;
-        log(`recv ${trunc(m)}`);
-        if (m[0] === '[') {
-          const u = JSON.parse(m);
-          D.recv && D.recv(u[0], u[1]);
-        } else if (m[0] === '<' && !old) {
-          old = 1;
-          err('This version of Ride cannot talk to interpreters older than v15.0');
-        } else if (/^UsingProtocol=/.test(m)) {
-          if (m.slice(m.indexOf('=') + 1) === '2') {
-            handshakeDone = true;
-          } else {
-            err('Unsupported Ride protocol version');
-            break;
-          }
+    c.onMessage((m) => {
+      log(`recv ${trunc(m)}`);
+      if (m[0] === '[') {
+        const u = JSON.parse(m);
+        D.recv && D.recv(u[0], u[1]);
+      } else if (m[0] === '<' && !old) {
+        old = 1;
+        err('This version of Ride cannot talk to interpreters older than v15.0');
+      } else if (/^UsingProtocol=/.test(m)) {
+        if (m.slice(m.indexOf('=') + 1) === '2') {
+          handshakeDone = true;
+        } else {
+          err('Unsupported Ride protocol version');
         }
       }
     });
-    clt.on('error', (x) => {
+    c.onError((x) => {
       clt && err(x);
       clt = 0;
       D.ide && D.ide.die();
     });
-    clt.on('end', () => {
+    c.onClose(() => {
       if (handshakeDone) {
         log('interpreter disconnected');
         D.ide && D.ide.die();
@@ -404,8 +393,7 @@
       }
       c.on('ready', () => { c.exec(cmd, { pty: { term: 'xterm' } }, f); })
         .on('tcp connection', (_, acc) => {
-          clt = acc();
-          initInterpreterConn();
+          initInterpreterConn(D.host.conn.adopt(acc()));
           new D.IDE().setConnInfo(o.host, 'SSH', sel ? sel.name : '');
         })
         .on('keyboard-interactive', (_, _1, _2, _3, fin) => { fin([x.pass]); })
@@ -419,7 +407,7 @@
     }
     return null;
   };
-  const ct = process.env.RIDE_CONNECT_TIMEOUT || 60000;
+  const ct = penv.RIDE_CONNECT_TIMEOUT || 60000;
   const cancelOp = (c) => {
     const cancel = (e) => {
       if (e) {
@@ -436,45 +424,28 @@
     q.connecting_dlg_close.onclick = cancel;
   };
   const connect = (x) => {
-    let m = net; // m:module used to create connection
-    const o = { host: x.host, port: x.port }; // o:options for .connect()
     D.isLocalInterpreter = localhosts.includes(x.host.toLowerCase());
-    if (x.ssl) {
-      try {
-        m = rq('tls');
-        if (x.cert) {
-          o.cert = fs.readFileSync(x.cert);
-          o.key = fs.readFileSync(x.key);
-        }
-        if (x.rootcertsdir) {
-          o.ca = fs.readdirSync(x.rootcertsdir)
-            .map((y) => fs.readFileSync(path.join(x.rootcertsdir, y)));
-        }
-        o.checkServerIdentity = (servername, cert) => {
-          if (!x.subj || x.host === cert.subject.CN) return;
-          err(`Wrong server certificate name. Expected:${JSON.stringify(x.host)}, actual:${JSON.stringify(cert.subject.CN)}`);
-          try { clt.end(); } catch (e) { console.error(e); }
-          throw new Error();
-        };
-      } catch (e) { err(e.message); return; }
-    }
-    clt = m.connect(o, () => {
-      initInterpreterConn();
+    const ac = new AbortController();
+    let conn;
+    D.host.conn.connect(x, { signal: ac.signal }).then((c) => {
+      conn = c;
+      // registered before initInterpreterConn's handler, so it reports errors first
+      c.onError((e) => {
+        log(`connect failed: ${e.message}`);
+        if (D.tmr && D.ide && e.code === 'ECONNABORTED') {
+          err('The interpreter is already serving another Ride client.', 'Connection closed by interpreter');
+          D.ide.die();
+          D.commands.CNC();
+        } else err(e);
+        clt = 0;
+      });
+      initInterpreterConn(c);
       new D.IDE().setConnInfo(x.host, x.port, sel ? sel.name : '');
+    }, (e) => {
+      log(`connect failed: ${e.message}`);
+      err(e);
     });
-    clt.on('error', (e) => {
-      log(`connect failed: ${e}`);
-      if (D.tmr && D.ide && e.code === 'ECONNABORTED') {
-        err('The interpreter is already serving another Ride client.', 'Connection closed by interpreter');
-        D.ide.die();
-        D.commands.CNC();
-      } else err(e);
-      clt = 0;
-    });
-    cancelOp(clt);
-    // net module needs a nudge to connect properly
-    // see https://github.com/Dyalog/ride/issues/387
-    D.ipc.server.broadcast('nudge');
+    cancelOp({ end: () => (conn ? conn.close() : ac.abort()) });
   };
 
   const go = (conf) => { // "Go" buttons in the favs or the "Go" button at the bottom
@@ -507,11 +478,11 @@
                   delete D.tmr;
                   return;
                 }
-                clt = client;
-                initInterpreterConn();
+                const fc = D.host.conn.adopt(client);
+                initInterpreterConn(fc);
                 new D.IDE().setConnInfo(x.host, x.port, sel ? sel.name : '');
-                clt.on('error', (ce) => {
-                  log(`connect failed: ${ce}`);
+                fc.onError((ce) => {
+                  log(`connect failed: ${ce.message}`);
                   clt = 0;
                   err(ce);
                   clearTimeout(D.tmr);
@@ -528,7 +499,7 @@
             connect({
               host: x.host || 'localhost',
               port: +x.port || 4502,
-              ssl: x.ssl,
+              ssl: x.subtype === 'ssl',
               cert: x.cert,
               key: x.key,
               subj: x.subj,
@@ -564,8 +535,7 @@
                 },
               });
             }
-            clt = c;
-            initInterpreterConn();
+            initInterpreterConn(D.host.conn.adopt(c));
             new D.IDE().setConnInfo(cHost, port, sel ? sel.name : '');
           });
           srv.on('error', (e) => {
@@ -578,7 +548,6 @@
             q.listen_dlg_host.textContent = o.address !== '::' ? o.address : 'host';
             q.listen_dlg_port.textContent = `${o.port}`;
           });
-          D.ipc.server.broadcast('nudge');
           break;
         }
         case 'start': {
@@ -682,8 +651,7 @@
               const adr = srv.address();
               srv && srv.close();
               srv = 0;
-              clt = y;
-              initInterpreterConn();
+              initInterpreterConn(D.host.conn.adopt(y));
               new D.IDE().setConnInfo(adr.address, adr.port, sel ? sel.name : '');
               D.lastSpawnedExe = x.exe;
             });
@@ -735,7 +703,7 @@
     } catch (e) { $.err(`${e}`); }
     return !1;
   };
-  global.go = go;
+  if (D.el) global.go = go; // test hook
   const setUpMenu = () => {
     D.InitHelp();
     const m = 'Ride'
@@ -774,16 +742,24 @@
     + '\n  &Third Party Licences    =TPL';
     D.installMenu(D.parseMenuDSL(m));
   };
-  D.cn = () => { // set up Connect page
+  const showPage = () => { // set up Connect page
     q = J.cn;
     I.cn.hidden = 0;
-    const winstate = D.el.getGlobal('winstate');
+    // Launch-window layout: main.js's winstate in Electron, defaults elsewhere until
+    // window bounds move onto D.host.win
+    const winstate = D.el ? D.el.getGlobal('winstate')
+      : { dx: 0, launchWin: { expandedWidth: 900, width: 400, expanded: true } };
+    if (!D.el) { // starting, listening and SSH are Electron-only
+      [q.type, q.subtype].forEach((s) => {
+        [...s.options].filter((o) => /^(start|listen|ssh)$/.test(o.value)).forEach((o) => o.remove());
+      });
+    }
     $(I.cn).splitter().on('splitter-resize', () => {
       winstate.launchWin.width = q.lhs.offsetWidth;
     });
     setTimeout(setUpMenu, 100);
     D.conns = [];
-    if (fs.existsSync(cnFile)) {
+    if (fs && fs.existsSync(cnFile)) {
       D.conns.push(...JSON.parse(fs.readFileSync(cnFile).toString()));
       D.conns_modified = +fs.statSync(cnFile).mtime;
     }
@@ -949,6 +925,7 @@
       q.rootcertsdir_cb.checked && q.rootcertsdir.focus();
     };
     const browse = (x, title, props) => {
+      if (!D.el) return !1; // file pickers reach Tauri with D.host.dlg
       const v = D.el.dialog.showOpenDialogSync({
         title,
         defaultPath: x.value,
@@ -977,14 +954,16 @@
     // };
     const toggleConfig = (show) => {
       const expanded = (show === undefined) ? !$(q.rhs).is(':visible') : !!show;
-      const { height } = D.elw.getContentBounds();
-      const newWidth = expanded ? winstate.launchWin.expandedWidth : winstate.launchWin.width;
       winstate.launchWin.expanded = expanded;
-      const minwidth = winstate.dx + (expanded ? 885 : 400);
-      D.elw.setMinimumSize(minwidth, 400);
-      D.elw.setContentSize(newWidth, height);
+      if (D.el) {
+        const { height } = D.elw.getContentBounds();
+        const newWidth = expanded ? winstate.launchWin.expandedWidth : winstate.launchWin.width;
+        const minwidth = winstate.dx + (expanded ? 885 : 400);
+        D.elw.setMinimumSize(minwidth, 400);
+        D.elw.setContentSize(newWidth, height);
+      }
       setTimeout(() => { I.cn.toggleMaximize(expanded ? winstate.launchWin.width : 0); }, 10);
-      nodeRequire('electron').ipcRenderer.send('save-win', true);
+      D.el && nodeRequire('electron').ipcRenderer.send('save-win', true);
     };
     toggleConfig(winstate.launchWin.expanded);
     $(q.favs).list().sortable({
@@ -1114,7 +1093,7 @@
     });
     updExes();
     document.title = 'New Session - Ride';
-    const conf = D.el.process.env.RIDE_CONF;
+    const conf = D.el && D.el.process.env.RIDE_CONF;
     if (conf) {
       const i = [...q.favs.children].findIndex((x) => x.cnData.name === conf);
       if (i < 0) $.err(`Configuration '${conf}' not found.`);
@@ -1126,7 +1105,7 @@
         return;
       }
     }
-    const autoStart = process.env.RIDE_AUTO_START ? process.env.RIDE_AUTO_START === '1' : D.prf.autoStart();
+    const autoStart = penv.RIDE_AUTO_START ? penv.RIDE_AUTO_START === '1' : D.prf.autoStart();
     let i = 0;
     if (!autoStart) {
       const defcfg = D.prf.defaultConfig();
@@ -1148,14 +1127,16 @@
     });
     save();
   };
-  module.exports = () => {
+  // Boot: connect, listen or spawn as the environment and arguments ask, else show the
+  // Connect page. Under Tauri those reach cn.js with the D.host.sys snapshot.
+  const start = () => {
     D.send = (x, y) => {
       if (D.ide && !D.ide.promptType
         && !/Interrupt$|TreeList|Reply|FormatCode|GetAutocomplete|SaveChanges|CloseWindow|Exit|SetPW/.test(x)) return;
       sendEach([JSON.stringify([x, y])]);
     };
-    const a = rq('@electron/remote').process.argv;
-    const { env } = D.el.process;
+    const a = D.el ? D.el.process.argv : [];
+    const env = D.el ? D.el.process.env : {};
     const h = { // h:args by name
       c: env.RIDE_CONNECT,
       l: env.RIDE_LISTEN,
@@ -1163,7 +1144,7 @@
       log: env.RIDE_LOG,
     };
     if (D.mac && env.DYALOG_SPAWN) {
-      const app = rq('@electron/remote').app.getAppPath();
+      const app = D.el.app.getAppPath();
       h.s = `${app}${env.DYALOG_SPAWN}`;
     }
     for (let i = 1; i < a.length; i++) if (a[i][0] === '-') { h[a[i].slice(1)] = a[i + 1]; i += 1; }
@@ -1192,14 +1173,14 @@
         exe: h.s,
         log: h.log,
       };
-      const openfile = rq('@electron/remote').getGlobal('open_file');
+      const openfile = D.el.getGlobal('open_file');
       if (openfile && /(dws|dcfg)$/i.test(openfile)) {
         const qt = /\s/.test(openfile) ? '"' : '';
         cnf.args = `LOAD=${qt}${openfile}${qt}`;
       }
       q = J.cn;
       go(cnf);
-    } else { D.cn(); }
+    } else { showPage(); }
   };
 
   {
@@ -1210,7 +1191,7 @@
     const t0 = +new Date();
     log = (x) => {
       const msg = `${new Date() - t0} ${x}`;
-      if (protocolLogFile) {
+      if (protocolLogFile && fs) { // the log file reaches Tauri with D.host.fs
         try {
           fs.appendFileSync(protocolLogFile, `${new Date().toISOString()} ${x}\n`);
         } catch (e) { console.error(e); }
@@ -1219,8 +1200,11 @@
       i = (i + 1) % n;
       for (let j = 0; j < l.length; j++) l[j](msg);
     };
-    module.exports.getLog = () => a.slice(i).concat(a.slice(0, i));
-    module.exports.addLogListener = (x) => { l.push(x); };
-    module.exports.rmLogListener = (x) => { const li = l.indexOf(x); li >= 0 && l.splice(li, 1); };
+    D.cn = {
+      start,
+      getLog: () => a.slice(i).concat(a.slice(0, i)),
+      addLogListener: (x) => { l.push(x); },
+      rmLogListener: (x) => { const li = l.indexOf(x); li >= 0 && l.splice(li, 1); },
+    };
   }
 }

@@ -261,7 +261,7 @@
         },
       });
       D.elm.enable(w.webContents);
-      const cn = nodeRequire(`${__dirname}/src/cn`);
+      const { cn } = D;
       D.logw = w;
       w.setTitle(`Protocol Log - ${D.ide.caption}`);
       w.loadURL(`file://${__dirname}/empty.html`);
