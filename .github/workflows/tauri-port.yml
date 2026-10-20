@@ -32,9 +32,11 @@ permissions:
   attestations: write
   artifact-metadata: write
 
+# A newer push to the same branch cancels the build it supersedes. Release runs (tag pushes,
+# or a dispatch with "release" ticked) get their own group and are never cancelled.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}${{ inputs.release && '-release' || '' }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' && !inputs.release }}
 
 jobs:
   windows:
