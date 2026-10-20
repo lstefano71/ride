@@ -51,3 +51,5 @@ node .wayfinder\assets\smoke-cdp.js 9222
 ## CI and releases
 
 The fork ([lstefano71/ride](https://github.com/lstefano71/ride)) builds with GitHub Actions in `.github/workflows/tauri-port.yml`; Dyalog's `Jenkinsfile` is untouched. Every push to `tauri-port` builds two Windows zips as artifacts: a portable Electron ia32 build and the Tauri x64 `ride.exe` with its `ride.pdb`. Pushing a `tauri-v*` tag, or running the workflow by hand with "release" ticked, publishes them as a [GitHub release](https://github.com/lstefano71/ride/releases). Pushes that only touch docs or `.wayfinder/` don't build.
+
+Every zip gets a signed [build provenance attestation](https://docs.github.com/actions/security-for-github-actions/using-artifact-attestations) linking it to the workflow run and commit that built it; check one with `gh attestation verify <zip> -R lstefano71/ride`. Releases also carry `SHA256SUMS.txt` (verify with `sha256sum -c SHA256SUMS.txt`, or compare against `Get-FileHash <zip>` on Windows), and the same hashes are listed in the release notes.

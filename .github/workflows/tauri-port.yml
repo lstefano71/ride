@@ -27,6 +27,10 @@ on:
 
 permissions:
   contents: write
+  # for actions/attest: sign with a Sigstore certificate and store the attestation
+  id-token: write
+  attestations: write
+  artifact-metadata: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -39,7 +43,7 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # the version counts every commit; release notes need old tags
 
@@ -54,7 +58,7 @@ jobs:
           "electron_config_cache=$t\electron" >> $env:GITHUB_ENV
           "$env:USERPROFILE\.cargo\bin" >> $env:GITHUB_PATH
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -65,7 +69,7 @@ jobs:
         with:
           workspaces: src-tauri
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ${{ runner.temp }}\electron
@@ -99,17 +103,29 @@ jobs:
           if ($LASTEXITCODE) { throw '7z failed' }
           Get-ChildItem dist | Format-Table Name, Length
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ride-electron-${{ steps.v.outputs.version }}-win-ia32
-          path: dist/ride-electron-*.zip
-          compression-level: 0
+      - name: Checksums
+        run: |
+          # sha256sum format (LF, no BOM) so `sha256sum -c SHA256SUMS.txt` works
+          $sums = Get-ChildItem dist\*.zip | ForEach-Object {
+            "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
+          }
+          [IO.File]::WriteAllText("$PWD\dist\SHA256SUMS.txt", ($sums -join "`n") + "`n")
+          Get-Content dist\SHA256SUMS.txt
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/attest@v4
         with:
-          name: ride-tauri-${{ steps.v.outputs.version }}-win-x64
+          subject-path: dist/*.zip
+
+      - uses: actions/upload-artifact@v7
+        with:
+          # Upload the zip as is; the artifact takes the file's name.
+          path: dist/ride-electron-*.zip
+          archive: false
+
+      - uses: actions/upload-artifact@v7
+        with:
           path: dist/ride-tauri-*.zip
-          compression-level: 0
+          archive: false
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/tauri-v') || inputs.release
@@ -135,6 +151,10 @@ jobs:
           if ($intro.Trim()) { $notes += $intro.Trim(), '' }
           $notes += "Changes since ${prev}:", ''
           $notes += git log "$prev..HEAD" --first-parent --format='- %s (%h)'
+          $notes += '', '### SHA-256', '', '```'
+          $notes += Get-Content dist\SHA256SUMS.txt
+          $notes += '```', ''
+          $notes += "Verify provenance with ``gh attestation verify <zip> -R ${{ github.repository }}``."
           $notes -join "`n" | Set-Content -Encoding utf8 notes.md
           Get-Content notes.md
-          gh release create $tag (Get-ChildItem dist\*.zip).FullName --target '${{ github.sha }}' --title "RIDE $tag" --notes-file notes.md
+          gh release create $tag (Get-ChildItem dist\*.zip, dist\SHA256SUMS.txt).FullName --target '${{ github.sha }}' --title "RIDE $tag" --notes-file notes.md
