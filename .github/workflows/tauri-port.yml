@@ -8,6 +8,12 @@ on:
   push:
     branches: [tauri-port]
     tags: ['tauri-v*']
+    # A push touching only these skips the build. Tag pushes ignore path filters.
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - '.wayfinder/**'
   workflow_dispatch:
     inputs:
       release:

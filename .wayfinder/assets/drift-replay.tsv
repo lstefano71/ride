@@ -1,0 +1,148 @@
+mode	commit	master	port	port_conflicts	files	subject
+fwd	85c50154	conflict	conflict	src/se.js	src/se.js	Merge pull request #1373 from Dyalog/emi_fix
+fwd	8e1524d7	conflict	conflict	src/se.js	src/se.js	Merge pull request #1374 from Dyalog/aplan_output
+fwd	98848733	clean	clean		src/hlp.js	#1370 - correct docs latest link
+fwd	8a36a435	clean	clean		src/se.js	Only clear last session line if type is not "default output"
+fwd	634e1538	conflict	conflict	Jenkinsfile	Jenkinsfile	#1246: Force macOS builds onto mac2 by using 'ride' label in Jenkins
+fwd	0f624921	clean	clean		CI/packagescripts/windows/make.sh,CI/packagescripts/windows/packageWindows.bat,Jenkinsfile	#1246: Try packaging Windows on new overnight server
+fwd	0078409c	conflict	conflict	CI/packagescripts/linux/packageLinux.sh,Jenkinsfile	CI/packagescripts/linux/packageLinux.sh,Jenkinsfile,mk	Add support for Linux/ARM64 #1319
+rev	c549c331	conflict	conflict	CI/packagescripts/windows/upgrade_guids,package.json	CI/packagescripts/windows/upgrade_guids,package.json	Bump master to v4.6
+rev	6941250a	conflict	conflict	docs/installation.md	docs/installation.md	[DOCS] Update the supported platform versions
+rev	355a1c8a	conflict	conflict	docs/installation.md	docs/installation.md	Stick to "or later" for min versions.
+rev	b48cd607	conflict	conflict	docs/installation.md	docs/installation.md,readme-docs.md	Tweaks following review
+rev	0d090a3b	conflict	conflict	docs/installation.md,docs/introduction.md,docs/ride_in_the_browser.md,docs/ridespecific_language_features.md,docs/starting_a_dyalog_session.md	docs/installation.md,docs/introduction.md,docs/ride_in_the_browser.md,docs/ridespecific_language_features.md,docs/starting_a_dyalog_session.md,mkdocs.yml	Better signposting for zero footprint RIDE
+rev	a58767c9	conflict	conflict	docs/ride_in_the_browser.md	docs/ride_in_the_browser.md	Clarify the language around platforms.
+rev	0030ebb4	conflict	conflict	package-lock.json,package.json	package-lock.json,package.json	Bump electron and @electron/remote package
+rev	ea7ddd65	clean	clean		CI/packagescripts/linux/packageLinux.sh	Update package dependencies for Linux
+rev	a8b10688	clean	clean		CI/packagescripts/linux/packageLinux.sh	Fix permissions for chrome-sandbox
+rev	c3e1d1df	conflict	conflict	docs/index.md,docs/introduction.md,docs/protocol.md,docs/sample_configuration_file.md,docs/starting_a_dyalog_session.md,readme.md,src/cn.js,src/ide.js	CI/GH-Release.sh,CI/copyinstallers.sh,CI/packagescripts/linux/launcher,CI/packagescripts/windows/make.sh,CI/packagescripts/windows/ride.wxs,ISSUE_TEMPLATE.md,code-docs/cmd-codes.txt,docs/cmd-codes.txt,docs/customising_your_session.md,docs/index.md,docs/installation.md,docs/introduction.md,docs/keyboard_shortcuts.md,docs/protocol.md,docs/ride_in_the_browser.md,docs/ridespecific_language_features.md,docs/sample_configuration_file.md,docs/starting_a_dyalog_session.md,docs/the_dyalog_development_environment.md,docs/working_in_a_dyalog_session.md,gruntfile.js,index.html,main.js,mk,mkdocs.yml,readme.md,sample-extensions/syntax-in-comments.js,src/cmds.js,src/cn.js,src/hlp.js,src/ide.js,src/init.js,src/prf.js,src/prf_col.js,src/prf_lyt.js,utils/style-picker/index.html	Rebrand RIDE → Ride
+rev	e1a54914	conflict	conflict	readme.md	readme.md	Mention remote possibility
+rev	37732644	conflict	conflict	src/km.js	src/km.js,src/prf.js	reset language bar action
+rev	ca3f879f	conflict	conflict	src/mon_apl.js	src/mon_apl.js	reorder autocomplete suggestions
+rev	ce5f62dd	conflict	conflict	src/mon_apl.js	src/mon_apl.js	accommodate feedback
+rev	732deb7f	conflict	conflict	src/km.js	src/km.js	use prf.lbarOrder setter to trigger appropiate listener
+rev	3b76a3b0	clean	clean		src/mon_apl.js	allow property autocomplete within both class and interface definition
+rev	d1d3efb9	clean	clean		src/km.js	remove redundant lbarRecreate call
+rev	b21ac8b0	clean	clean		readme.md	language
+rev	887190d3	clean	clean		docs/index.md,docs/introduction.md,docs/sample_configuration_file.md,docs/starting_a_dyalog_session.md	Fix lingering RIDE/Ride issues. #1242
+rev	0978c518	clean	clean		Jenkinsfile	Alter stash name for notaraized macOS build to avoid name clash with n
+rev	64060047	clean	clean		Jenkinsfile	Alter stash name for notaraized macOS build to avoid name clash with n
+rev	31d37491	clean	clean		sample-extensions/package-lock.json,sample-extensions/package.json,sample-extensions/vim.js	Add sample vim extension
+rev	e2124284	clean	clean		tools/bq-gen	Correct svn url
+rev	2a373520	conflict	conflict	src/mon_apl.js	src/mon_apl.js	Colour ⍛ as valid dyadic operator.
+rev	ae7df008	clean	clean		src/mon_apl.js	Try placing ⍛ in different location within regex. Confusion over CI fa
+rev	086ff8cf	clean	clean		src/bq.js	Remove duplicate backtick entry for ⍨
+rev	cc06ccb8	clean	clean		src/bq.js	Add back tick entries for ⍛
+rev	9aa62c9a	clean	clean		tools/kbds-gen.js	fix #1268 - change http → https
+rev	66702ddc	clean	clean		src/kbds.js	Regenerate src/kbds.js
+rev	ab8971fc	clean	clean		Jenkinsfile	Update Jenkinsfile
+rev	152f3fcd	conflict	conflict	mk,package-lock.json,package.json	mk,package-lock.json,package.json	Update electron to v34 and replace electron-packager with new name
+rev	94af7c19	clean	clean		Jenkinsfile	Use node v22 in build pipeline
+rev	7115e8e3	conflict	conflict	docs/protocol.md,src/ed.js,src/ide.js,src/km.js,src/se.js	docs/protocol.md,src/cmds.js,src/ed.js,src/ide.js,src/km.js,src/prf_col.js,src/se.js	Add support for trace token (TP)
+rev	b2558578	conflict	conflict	src/ed.js,style/less/colour/monaco.less	src/ed.js,style/less/colour/monaco.less	Highlight token using background color
+rev	23bd4b1a	conflict	conflict	src/ed.js	src/ed.js	Syntax color code even if readonly
+rev	630a226e	conflict	conflict	src/ed.js	src/ed.js	SetHighlightLine incorrectly bumped the line nr
+rev	638194dc	conflict	conflict	src/ed.js	src/ed.js	Handle excessive UpdateWindow
+rev	2de6ff96	conflict	conflict	style/less/colour/monaco.less	style/less/colour/monaco.less	Improve highlight token color
+rev	c5c4eaff	conflict	conflict	src/ed.js,style/less/colour/monaco.less	src/ed.js,style/less/colour/monaco.less	Token highlight changed back to outline
+rev	e2cb125c	conflict	conflict	src/cmds.js	src/cmds.js	Change TP command name to "Trace primitives"
+rev	f93ff330	conflict	conflict	src/wse.js	src/wse.js	WSE - Treat # and ⎕SE as namespaces
+rev	cb5cf994	conflict	conflict	style/less/layout/workspace_explorer.less	style/less/layout/workspace_explorer.less	WSE - Add separate icon for labels
+rev	dc3ce60e	conflict	conflict	docs/protocol.md,src/ed.js	docs/protocol.md,src/ed.js,src/ide.js	Update SetHighlightLine properties
+rev	8220f799	conflict	conflict	src/ed.js	src/ed.js	TraceToken command replaced with TracePrimitive
+rev	ede16282	conflict	conflict	index.html,src/ed.js	docs/protocol.md,index.html,src/ed.js,style/less/layout/tracer.less	Add button to edit as APLAN
+rev	2a4c3d8d	conflict	conflict	src/mon_apl.js	src/mon_apl.js	Update tokenizer to support APLAN
+rev	97df8872	conflict	conflict	style/less/layout/workspace_explorer.less,style/less/themes/base.less	style/less/layout/workspace_explorer.less,style/less/themes/base.less	colour overhaul
+rev	b41c4e06	conflict	conflict	style/less/layout/workspace_explorer.less	style/less/colour/workspace_explorer.less,style/less/layout/workspace_explorer.less	Remove conflicting css rules and add for label
+rev	6ee76450	clean	clean		src/wse.js	Fix handling of timed out value tips in WSE
+rev	8a9cf121	clean	clean		style/less/layout/workspace_explorer.less	Change icon from [V] to [A]
+rev	f41702fe	clean	clean		src/prf_col.js	Dssable ambiguous character outline in prf col, fix #1288
+rev	1d7ec335	clean	clean		src/ed.js	Alwats use interpreter for formatting APLAN
+rev	a2be7d8d	conflict	conflict	src/se.js	src/prf_col.js,src/se.js	Fix highlight outline for block
+rev	c0638b79	conflict	conflict	src/se.js	src/mon_apl.js,src/se.js	Undo changes in block as a whole
+rev	1f3d2641	clean	clean		src/ide.js	Fix linting issues
+rev	e002323d	conflict	conflict	src/mon_apl.js,src/prf_col.js	src/mon_apl.js,src/prf_col.js	Syntax coloring for APLAN
+rev	df3cd184	clean	clean		src/mon_apl.js	Recognise closing square bracket in session when in APLAN mode
+rev	91f637f8	conflict	conflict	src/se.js	src/se.js	Don't remove 6 space prompt when in multiline mode
+rev	5f3723c3	clean	clean		src/lb.js	Correctly place ⍛ in language bar.
+rev	1e630006	conflict	conflict	src/mon_apl.js	src/mon_apl.js	Labels and names in namespaces may have space before colon
+rev	8fddfb4a	clean	clean		src/mon_apl.js	Fix syntax coloring of APLAN square brackets
+rev	7419c2e4	clean	clean		src/mon_apl.js	Treat open parens on line without a closing paren as APLAN
+rev	ce86917f	clean	clean		docs/protocol.md	Protocol identifier is always uppercase
+rev	7c06238f	clean	conflict	src/init.js,src/ipc.js	main.js,src/init.js,src/ipc.js	Pasting with standard keyboard shortcut fixed
+rev	4d6c9c61	conflict	conflict	package.json	package.json	New minimum electron version 34.0.1 -> 34.5.0
+rev	8d7e0027	clean	clean		src/ed.js,style/less/colour/monaco.less	Fix highlight line for v20 and use background instead of outline for I
+rev	ee486063	conflict	conflict	src/km.js	docs/protocol.md,src/cmds.js,src/ed.js,src/km.js,src/se.js	Rename command TP to IT
+rev	d2a47758	clean	clean		src/mon_apl.js	Correct tokenisation for labels
+rev	6509b788	conflict	conflict	Jenkinsfile	Jenkinsfile	Update Jenkins to use MacARM #1316
+rev	37ad6494	conflict	conflict	Jenkinsfile	Jenkinsfile	Split Mac x86 and mac arm builds #1316
+rev	c5e769bb	clean	clean		Jenkinsfile	Don't build Mac x86 on both x86 and arm systems
+rev	47d4227b	conflict	conflict	Jenkinsfile	Jenkinsfile	mixed up node labels and stage label for mac arm #1316
+rev	881d3eac	clean	clean		CI/packagescripts/osx/packageOSX.sh	don't hard-code architecture in OSX Packages #1316
+rev	2fed9a61	conflict	conflict	CI/packagescripts/osx/notarise.sh	CI/packagescripts/osx/notarise.sh,CI/packagescripts/osx/packageOSX.sh,Jenkinsfile	Update packages to include the architecture for Mac #1316
+rev	1be11e8f	clean	conflict	src/abt.js	src/abt.js	Show correct platform and architecture in About window.
+rev	dd5a8bbb	conflict	conflict	package-lock.json,style/less/colour/status_bar.less	index.html,package-lock.json,style/less/colour/status_bar.less,style/less/themes/base.less	Improve status bar alert color for better visibility (#853)
+rev	077c77fd	clean	clean		style/less/colour/status_bar.less	Make status bar alert color more attention-seeking (#853)
+rev	1ca588db	clean	clean		D.icns,D.ico,D.svg,favicon.ico	Change icon to purple
+rev	9e1a6555	clean	clean		.github/ISSUE_TEMPLATE/bug_report.md	Add template file
+rev	ffbc08f3	clean	clean		.github/ISSUE_TEMPLATE/config.yml	Add config so bug_report template is the default
+rev	133f9b41	clean	clean		ISSUE_TEMPLATE.md	Remove old template
+rev	42576286	conflict	conflict	src/se.js	src/se.js,style/less/colour/monaco.less	Support interrupting multiline input by clicking in margin.
+rev	c9a9ba47	conflict	conflict	src/se.js	src/cmds.js,src/ed.js,src/km.js,src/se.js	Add EMI keyboard shortcut to Exit Multiline Input
+rev	2ab08bfa	clean	conflict	src/cn.js	src/cn.js	Include all error messages when an aggregate error is reported
+rev	136d20bc	conflict	conflict	src/se.js	src/se.js	Refactor multiline group identification
+rev	d0347db9	conflict	conflict	src/se.js	src/se.js	Only re-execute input groups
+rev	ce9e874d	conflict	conflict	src/se.js	src/se.js	Improve handling of SetLineGroup to 0
+rev	c5c41cfd	clean	clean		CI/packagescripts/linux/packageLinux.sh,Jenkinsfile,mk	Add Linux arm64 support (#1335)
+rev	e57b11d7	clean	clean		src/prf_col.js	Fix #1274 (specify APLAN colours)
+rev	d426335a	clean	clean		src/ide.js,src/km.js	Don't show help if no URL returned from interpreter
+rev	74dc5055	conflict	conflict	mk	mk	Change build tmp dir to support parallel builds
+rev	87de7f61	conflict	conflict	mk	mk	Corrected JOB_NAME variable
+rev	aa76e227	clean	clean		mk	Exclude pid from tmpdir and use same path for Jenkins
+rev	161fee55	conflict	conflict	src/hlp.js	src/hlp.js	Update help URLs for v20.0
+rev	97589cd2	clean	clean		src/prf.js	Update Getting started URL
+rev	9539dbc3	clean	clean		src/hlp.js	#1336 dyalog_readme.htm will appear in /files, not /
+rev	cd054fb5	clean	clean		src/hlp.js	Fix silly error where I updated the pre-20.0 code, not the 20.0 onward
+rev	f274eb7b	clean	clean		src/cn.js	exes must be an array - this can cause errors in the JS
+rev	6ea40018	conflict	conflict	Jenkinsfile	Jenkinsfile	#1346 Disable all macOS-related parts of Jenkinsfile
+rev	f2eb853f	clean	clean		Jenkinsfile	Missed one call for mac
+rev	e27ab3f2	conflict	conflict	src/se.js	src/se.js	Only re-execute input groups
+rev	8169675e	clean	clean		src/se.js	Check isInputLine once on change
+rev	3ae857c0	clean	clean		src/se.js	Undo changes when adding to session
+rev	67b109d7	conflict	conflict	src/se.js	src/se.js	setDecorations refactored
+rev	f1ddc684	conflict	conflict	src/se.js	src/se.js	Refactor add
+rev	b6b26621	conflict	conflict	src/se.js	src/se.js	Handle six space prompt if prompt type is 3 or 4
+rev	2b582c8a	conflict	conflict	src/se.js	src/se.js	Pasting of multiple lines further up in log shouldn't break
+rev	c0099d05	clean	clean		src/se.js	Use undoChanges in exec
+rev	4578a494	conflict	conflict	src/se.js	src/se.js	Refactor setGroupDecorations to handle cut/paste in log
+rev	17fb9c49	clean	clean		src/se.js	Handle offsets when pasting and QTing
+rev	9d42823d	clean	clean		src/mon_apl.js	Syntax highlighting accounts for pasting
+rev	da8dd973	clean	clean		index.html	Replace icon for editing array
+rev	0e35b618	clean	clean		Jenkinsfile	#1346 - reenable macOS builds
+rev	4297135e	clean	clean		Jenkinsfile	#1346 - reenable macOS builds part 2
+rev	18f0ee02	clean	clean		Jenkinsfile	#1346 - skip macarm for now2
+rev	6f6c0fb5	conflict	conflict	CI/packagescripts/osx/notarise.sh	CI/packagescripts/osx/notarise.sh	#1346 skip mac_arm for now
+rev	3c24b222	clean	clean		CI/packagescripts/osx/notarise.sh	#1346 Try osx/ARM again
+rev	40f93bab	clean	clean		Jenkinsfile	#1346 Try osx/ARM again
+rev	2293e87f	conflict	conflict	CI/packagescripts/windows/upgrade_guids,package.json	CI/packagescripts/windows/upgrade_guids,package.json	Bump master to v4.7
+rev	34bb8350	clean	clean		tools/kbds-gen.js	#1368 Remove John Scholes as contact
+rev	0837f339	clean	clean		src/se.js	Exit multiline offset corrected
+rev	1f818090	conflict	conflict	src/se.js	src/se.js	Tidy up on exit multiline
+rev	1acf21d3	clean	clean		src/se.js	Don't show cancel multiline icon in pre v20 interpreters
+rev	2007c5bc	clean	clean		src/se.js	Correct offset in setLineGroup
+rev	839f260d	conflict	conflict	src/se.js	src/se.js	Ensure output replaces current line when needed
+rev	33c41e68	clean	clean		src/se.js	Don't add implicit linebreak on prompttype change to 1
+rev	f1aa4508	conflict	conflict	src/se.js	src/se.js	Fix output issue when using APLAN_FOR_OUTPUT=1
+rev	8c8a5b12	clean	clean		src/hlp.js	#1370 - correct docs latest link
+rev	cad5616f	clean	clean		src/cmds.js	#1351 Move JSC from F12 → Shift+F12
+rev	98257b33	conflict	conflict	src/syntax_info.js	src/syntax_info.js	#1378 lower case text required
+rev	d98c549c	clean	clean		src/syntax_info.js	#1378 Add classic version of ⍛
+rev	25e85f5a	clean	clean		src/syntax_info.js	Revert "#1378 Add classic version of ⍛"
+rev	e6cba096	conflict	conflict	src/syntax_info.js	src/syntax_info.js	Revert "#1378 lower case text required"
+rev	e970640d	conflict	conflict	src/syntax_info.js	src/syntax_info.js	#1378 lower case text required
+rev	ca81c2f7	clean	clean		src/syntax_info.js	#1378 Add classic version of ⍛
+rev	acff1f5c	clean	conflict	package-lock.json	package-lock.json,package.json	Update Electron Version v34.5.0 -> 35.7.5
+rev	7445af0b	clean	clean		Jenkinsfile	Temporarily don't remove ship and _ directories (#991)
+rev	78fcaaf7	clean	clean		docs/keyboard_shortcuts.md	Update docs #1351
+rev	bb9dbd87	clean	clean		src/se.js	Only clear last session line if type is not "default output"
+rev	307003ef	clean	clean		CI/packagescripts/windows/upgrade_guids,package.json	Bump master to v4.8
