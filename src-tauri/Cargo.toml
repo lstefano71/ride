@@ -17,7 +17,7 @@ tauri-build = { version = "2.7.3", features = [] }
 serde_json = "1"
 
 [dependencies]
-tauri = { version = "2.12.4", features = [] }
+tauri = { version = "2.12.4", features = ["devtools"] }
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["net", "io-util", "sync", "macros"] }
 rustls-pki-types = { version = "1", features = ["std"] }
@@ -29,6 +29,9 @@ ring = "0.17"
 dirs = "7"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 tauri-plugin-dialog = "2.8.3"
+tauri-plugin-opener = "2.7.2"
+tauri-plugin-clipboard-manager = "2.5.0"
+sys-locale = "0.3.2"
 
 [profile.release]
 codegen-units = 1

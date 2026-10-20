@@ -31,6 +31,54 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
   });
   D.host = { kind: 'tauri', ready, store };
 
+  // sys: the snapshot Rust injects into every page (src-tauri/src/sys.rs), and calls that
+  // act on the app or a window. env is case-insensitive on Windows, as Node's is.
+  const hostError = (e) => (e instanceof Error ? e : new Error(String(e)));
+  const call = (cmd, args) => invoke(cmd, args).catch((e) => { throw hostError(e); });
+  const s0 = window.__RIDE_SYS__ || {
+    env: {}, argv: [], platform: '', arch: '', pid: 0, versions: {}, locale: navigator.language, tempDir: '',
+  };
+  const env = s0.platform !== 'win32' ? s0.env : new Proxy(s0.env, {
+    get(t, k) {
+      if (typeof k !== 'string' || k in t) return t[k];
+      const u = k.toUpperCase();
+      const m = Object.keys(t).find((x) => x.toUpperCase() === u);
+      return m === undefined ? undefined : t[m];
+    },
+  });
+  D.host.sys = {
+    ...s0,
+    env,
+    // env: variables to override in the new instance
+    relaunch: (e = {}) => call('sys_relaunch', {
+      env: Object.fromEntries(Object.entries(e).map(([k, v]) => [k, `${v}`])),
+    }),
+    toggleDevTools: (l) => call('sys_toggle_devtools', { label: l }),
+    print: (l) => call('sys_print', { label: l }),
+    openExternal: (url) => call('plugin:opener|open_url', { url }),
+    clipboard: {
+      readText: () => call('plugin:clipboard-manager|read_text'),
+      writeText: (text) => call('plugin:clipboard-manager|write_text', { text }),
+    },
+  };
+  D.win = s0.platform === 'win32';
+  D.mac = s0.platform === 'darwin';
+
+  // fs: text files by path (src-tauri/src/fs.rs). Calls on one path land in the order
+  // they were made.
+  const fsNext = {};
+  const fsCall = (cmd, path, text) => {
+    const p = (fsNext[path] || Promise.resolve()).then(() => call(cmd, { path, text }));
+    fsNext[path] = p.catch(() => {});
+    return p;
+  };
+  D.host.fs = {
+    readText: (path) => fsCall('fs_read_text', path),
+    writeText: (path, text) => fsCall('fs_write_text', path, text),
+    appendText: (path, text) => fsCall('fs_append_text', path, text),
+    remove: (path) => fsCall('fs_remove', path),
+  };
+
   // ipc: messages between windows, addressed by window label, as Tauri events.
   const wv = window.__TAURI__.webviewWindow;
   const me = wv.getCurrentWebviewWindow();
@@ -175,6 +223,11 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
       .then(fn)
       .catch((x) => { console.error(x); return false; }) // eslint-disable-line no-console
       .then((ok) => { ok || e.preventDefault(); }))),
+    // fn(paths): files dropped onto the current window. Tauri takes OS drops over from
+    // the page and reports their paths.
+    onFileDrop: (fn) => window.__TAURI__.webview.getCurrentWebview()
+      .onDragDropEvent(({ payload: p }) => { p.type === 'drop' && fn(p.paths); })
+      .then(() => {}, (e) => { throw winError(e); }),
   };
 
   // dlg: native dialogs (tauri-plugin-dialog, i.e. rfd). They take at most three
@@ -214,7 +267,7 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
   // menu: native menus through Tauri's menu API, from plain templates
   // ({id, label, accelerator, type, checked, enabled, visible, role, items}).
   const tm = window.__TAURI__.menu;
-  const mac = /Mac/.test(navigator.platform);
+  const { mac } = D;
   const predefined = {
     cut: 'Cut',
     copy: 'Copy',

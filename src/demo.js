@@ -2,7 +2,6 @@
 (function Demo() {
   let lines = [];
   let index = -1;
-  let inp; // inp:an <input type=file> used to open the file chooser dialog
   function move(d) {
     if (index + d >= 0 && index + d < lines.length) {
       index += d;
@@ -21,8 +20,7 @@
     return [s, !isMeta]; // s:key name, c:is the key combination complete?
   }
   function loadDemoScript(f) { // f:path to file, ignored if empty
-    f && nodeRequire('fs').readFile(f, 'utf8', (err, s) => {
-      if (err) { $.err('Cannot load demo file'); return; }
+    f && D.host.fs.readText(f).then((s) => {
       index = -1;
       let indent = 6;
       lines = s.replace(/^[\ufeff\ufffe]/, '').split(/\r?\n/)
@@ -36,24 +34,16 @@
           return ' '.repeat(indent) + l;
         })
         .filter(x => !/^\s*&(⍝|&)/.test(x));
-    });
+    }, () => { $.err('Cannot load demo file'); });
   }
-  D.el && loadDemoScript(process.env.RIDE_DEMO_SCRIPT);
+  D.desktop && loadDemoScript(D.host.sys.env.RIDE_DEMO_SCRIPT);
   const handlers = [];
   $.extend(D.commands, {
     DMN() { move(1); }, // next line
     DMP() { move(-1); }, // prev line
     DMR() { // load demo script
-      if (!D.el || D.ide.floating) return;
-      if (!inp) {
-        inp = document.createElement('input');
-        inp.type = 'file';
-        inp.hidden = 1;
-        document.body.appendChild(inp);
-        inp.onchange = () => { loadDemoScript(inp.files[0].path); };
-      }
-      inp.value = '';
-      inp.click();
+      if (!D.desktop || D.ide.floating) return;
+      D.host.dlg.open({ title: 'Load demo script' }).then((f) => { f && loadDemoScript(f); });
     },
   });
 }());

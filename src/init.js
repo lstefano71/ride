@@ -105,9 +105,12 @@ const Console = console;
       return !!window.open(url, '_blank', spec);
     });
 
-    D.openExternal = D.el ? D.el.shell.openExternal : (x) => { window.open(x, '_blank'); };
-    if (D.el) {
-      window.electronOpen = window.open;
+    /* eslint-disable no-console */
+    D.openExternal = D.desktop
+      ? (x) => { D.host.sys.openExternal(x).catch((e) => console.error(e)); }
+      : (x) => { window.open(x, '_blank'); };
+    /* eslint-enable no-console */
+    if (D.desktop) {
       window.open = (url) => {
         !!url && D.openExternal(url);
         return { location: { set href(u) { D.openExternal(u); } } };
@@ -197,8 +200,12 @@ const Console = console;
         }, 10);
         return false;
       }
-      D.ide && D.prf.connectOnQuit() && D.commands.CNC();
       if (D.ide && !D.ide.connected && D.desktop) D.wins[0].histWrite();
+      // let the new instance start before this one goes
+      if (D.ide && D.prf.connectOnQuit() && D.desktop) {
+        /* eslint-disable-next-line no-console */
+        return D.newSession().then(() => true, (e) => { console.error(e); return true; });
+      }
       return true;
     };
     if (!D.desktop) {
@@ -253,13 +260,10 @@ const Console = console;
         return !$a.length;
       });
     }
-    if (D.el) {
+    if (D.desktop) {
       // drag and drop
-      window.ondrop = (e) => { e.preventDefault(); return !1; };
-      window.ondragover = window.ondrop;
-      window.ondrop = (e) => {
-        const { files } = e.dataTransfer;
-        const { path } = (files[0] || {});
+      D.host.win.onFileDrop((files) => {
+        const [path] = files;
         if (!D.ide || !path) {
           // no session or no file dragged
         } else if (!/\.dws$/i.test(path)) {
@@ -279,23 +283,19 @@ const Console = console;
             (x) => { if (x) D.ide.exec([`      )load ${path}\n`], 0); },
           );
         }
-        e.preventDefault();
-        return !1;
-      };
+      }).catch((e) => console.error(e)); // eslint-disable-line no-console
 
-      // extra css and js
-      const path = nodeRequire('path');
-      const { env } = process;
-      if (env.RIDE_JS) {
-        env.RIDE_JS
-          .split(path.delimiter)
-          .forEach((x) => { if (x) $.getScript(`file://${path.resolve(process.cwd(), x)}`); });
-      }
-      if (env.RIDE_CSS) {
-        $('<style>')
-          .text(env.RIDE_CSS.split(path.delimiter).map(x => `@import url("${x}");`))
-          .appendTo('head');
-      }
+      // extra css and js, read relative to the working directory
+      /* eslint-disable no-console */
+      const { env } = D.host.sys;
+      const paths = (x) => (x || '').split(D.win ? ';' : ':').filter((y) => y);
+      paths(env.RIDE_JS).forEach((x) => {
+        D.host.fs.readText(x).then((s) => { $.globalEval(s); }, (e) => console.error(e));
+      });
+      paths(env.RIDE_CSS).forEach((x) => {
+        D.host.fs.readText(x).then((s) => { $('<style>').text(s).appendTo('head'); }, (e) => console.error(e));
+      });
+      /* eslint-enable no-console */
     }
   };
 

@@ -15,12 +15,13 @@
       s += `${i ? ',\n' : ''}    ${repr(x)}:${repr(db.getItem(x))}`;
     }
     let el = '';
-    if (D.el) {
-      el = ''
-        + `\n  Electron: ${D.el.process.versions.electron}`
-        + `\n  Chrome: ${D.el.process.versions.chrome}`
-        + `\n  Node: ${D.el.process.versions.node}`
-        + `\n  Platform: ${D.el.process.platform}-${D.el.process.arch}`;
+    if (D.desktop) {
+      const { versions, platform, arch } = D.host.sys;
+      const names = {
+        electron: 'Electron', chrome: 'Chrome', node: 'Node', tauri: 'Tauri', webview: 'WebView',
+      };
+      el = `${Object.keys(versions).map((k) => `\n  ${names[k] || k}: ${versions[k]}`).join('')
+      }\n  Platform: ${platform}-${arch}`;
     }
     return 'IDE:'
       + `\n  Version: ${v.version || u}`

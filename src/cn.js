@@ -10,17 +10,18 @@
   let clt; // client, a D.host.conn connection to the interpreter
   let child; // a ChildProcess instance, the result from spawn()
   let srv; // server, used to listen for connections from interpreters
-  // Node is reachable only in the Electron shell. The sites below that use it move onto
-  // D.host with their area tickets; until then they do nothing under Tauri. Spawn, listen
-  // and SSH are out of scope for Tauri and stay Electron-only.
+  // Node is reachable only in the Electron shell, for starting, listening and SSH, which
+  // are out of scope for Tauri and stay Electron-only. Process facts come from D.host.sys.
   const rq = D.el ? nodeRequire : null;
   const fs = rq && rq('fs');
   const cp = rq && rq('child_process');
   const os = rq && rq('os');
   const net = rq && rq('net');
   const path = rq && rq('path');
-  const penv = D.el ? process.env : {};
+  const sys = D.desktop ? D.host.sys : { env: {}, argv: [] };
+  const penv = sys.env;
   const home = os ? os.homedir() : '';
+  // Under Tauri only the loopback names count as local.
   const nets = os ? os.networkInterfaces() : {};
   const localhosts = [
     ...Object.keys(nets).map((intf) => nets[intf].map((k) => k.address)).flat(),
@@ -28,7 +29,7 @@
   ];
   const untildify = (x) => (x && home ? x.replace(/^~(?=$|\/|\\)/, home) : x);
   const { esc } = D.util;
-  const user = D.el ? (penv.USER || penv.USERNAME || '') : '';
+  const user = penv.USER || penv.USERNAME || '';
   const MIN_V = [15, 0];
   const KV = /^([a-z_]\w*)=(.*)$/i;
   const WS = /^\s*$/; // KV:regexes for parsing env vars
@@ -36,10 +37,9 @@
   const pathNotFound = /The system cannot find the path specified/; // regex to check response from ssh exec
   const maxl = 1000;
   let protocolLogFile;
-  const defaultProtocolLogFile = D.el ? path.join(
-    D.el.app.getPath('temp'),
-    `Ride-${D.versionInfo.version}-${D.el.process.pid}.log`,
-  ) : '';
+  const defaultProtocolLogFile = D.desktop
+    ? `${sys.tempDir}${sys.platform === 'win32' ? '\\' : '/'}Ride-${D.versionInfo.version}-${sys.pid}.log`
+    : '';
   const trunc = (x) => (x.length > maxl ? `${x.slice(0, maxl - 3)}...` : x);
   const shEsc = (x) => `'${x.replace(/'/g, "'\\''")}'`; // shell escape
   const sendEach = (x) => {
@@ -51,9 +51,9 @@
     }
   };
   const dyalogArgs = (args) => {
-    const i = D.el ? D.el.process.argv.indexOf('--') : -1;
+    const i = sys.argv.indexOf('--');
     if (i < 0) return args;
-    return D.el.process.argv.slice(1 + i).concat(args);
+    return sys.argv.slice(1 + i).concat(args);
   };
   // compare two versions of the form [major,minor]
   const cmpVer = (x, y) => x[0] - y[0] || x[1] - y[1] || 0;
@@ -775,8 +775,8 @@
     if (hasCreated) save();
     I.cn.onkeyup = (x) => {
       const k = D.util.fmtKey(x);
-      if (D.el && k === 'F12') {
-        D.elw.webContents.toggleDevTools();
+      if (D.desktop && k === 'F12') {
+        D.host.sys.toggleDevTools(D.host.win.current());
         return !1;
       }
       return !0;
@@ -1094,7 +1094,7 @@
     });
     updExes();
     document.title = 'New Session - Ride';
-    const conf = D.el && D.el.process.env.RIDE_CONF;
+    const conf = penv.RIDE_CONF;
     if (conf) {
       const i = [...q.favs.children].findIndex((x) => x.cnData.name === conf);
       if (i < 0) $.err(`Configuration '${conf}' not found.`);
@@ -1136,19 +1136,24 @@
         && !/Interrupt$|TreeList|Reply|FormatCode|GetAutocomplete|SaveChanges|CloseWindow|Exit|SetPW/.test(x)) return;
       sendEach([JSON.stringify([x, y])]);
     };
-    const a = D.el ? D.el.process.argv : [];
-    const env = D.el ? D.el.process.env : {};
+    const a = sys.argv;
+    const env = penv;
     const h = { // h:args by name
       c: env.RIDE_CONNECT,
       l: env.RIDE_LISTEN,
       s: env.RIDE_SPAWN || env.ride_spawn,
       log: env.RIDE_LOG,
     };
-    if (D.mac && env.DYALOG_SPAWN) {
+    if (D.mac && env.DYALOG_SPAWN && D.el) {
       const app = D.el.app.getAppPath();
       h.s = `${app}${env.DYALOG_SPAWN}`;
     }
     for (let i = 1; i < a.length; i++) if (a[i][0] === '-') { h[a[i].slice(1)] = a[i + 1]; i += 1; }
+    if (!D.el && (h.l || h.s)) { // listening and starting are Electron-only
+      toastr.warning('This build of Ride cannot listen or start an interpreter.', h.l ? 'RIDE_LISTEN ignored' : 'RIDE_SPAWN ignored');
+      delete h.l;
+      delete h.s;
+    }
     if (h.c) {
       q = J.cn;
       const m = HP.exec(h.c); // parse host and port
@@ -1192,10 +1197,9 @@
     const t0 = +new Date();
     log = (x) => {
       const msg = `${new Date() - t0} ${x}`;
-      if (protocolLogFile && fs) { // the log file reaches Tauri with D.host.fs
-        try {
-          fs.appendFileSync(protocolLogFile, `${new Date().toISOString()} ${x}\n`);
-        } catch (e) { console.error(e); }
+      if (protocolLogFile && D.desktop) {
+        D.host.fs.appendText(protocolLogFile, `${new Date().toISOString()} ${x}\n`)
+          .catch((e) => console.error(e));
       }
       a[i] = msg;
       i = (i + 1) % n;

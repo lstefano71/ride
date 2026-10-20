@@ -66,7 +66,7 @@
           return !1;
         }
         if (k === 'F12') {
-          D.el.getCurrentWebContents().toggleDevTools();
+          D.host.sys.toggleDevTools(D.host.win.current());
           return !1;
         }
         return !0;

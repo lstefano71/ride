@@ -11,7 +11,7 @@
 
   const { layouts } = D.kbds;
   if (!layouts[D.prf.kbdLocale()]) {
-    const s = D.el ? nodeRequire('os-locale').sync() : navigator.language;
+    const s = D.desktop ? D.host.sys.locale : navigator.language;
     const l = s.slice(0, 2).toLowerCase(); // language
     const c = s.slice(3, 5).toUpperCase(); // country
     // default layout for country c
@@ -45,6 +45,13 @@
   };
   updBQ(); D.prf.prefixMaps(updBQ); D.prf.kbdLocale(updBQ);
   const openURI = (uri) => { D.openExternal(encodeURI(uri)); };
+  // a new RIDE instance that shows the Connect page
+  D.newSession = () => D.host.sys.relaunch({
+    RIDE_CONNECT: '',
+    RIDE_SPAWN: '',
+    DYALOG_SPAWN: '',
+    RIDE_AUTO_START: '0',
+  });
 
   D.keyMap.dyalogDefault = { };
 
@@ -54,8 +61,12 @@
     CT() { document.execCommand('Cut'); },
     CP() { document.execCommand('Copy'); },
     PT(me) {
-      if (D.el) {
-        document.execCommand('Paste');
+      if (D.desktop) {
+        // Monaco's own paste, so multi-cursor pastes split as with Ctrl+V
+        D.host.sys.clipboard.readText().then((text) => {
+          if (me) me.trigger('keyboard', 'paste', { text });
+          else document.execCommand('insertText', false, text);
+        }, (e) => console.error(e)); // eslint-disable-line no-console
       } else if (me) {
         navigator.clipboard.readText().then((text) => {
           me.executeEdits('D', me.getSelections().map((range) => ({ range, text, forceMoveMarkers: true })));
@@ -81,19 +92,10 @@
     },
     CAW() { D.send('CloseAllWindows', {}); },
     CNC() {
-      const p = D.el.process.argv; // if(D.mac)p=p.replace(/(\/Contents\/).*$/,'$1MacOS/nwjs')
-      nodeRequire('child_process').spawn(p[0], p.slice(1), {
-        detached: true,
-        stdio: ['ignore', 'ignore', 'ignore'],
-        env: {
-          ...process.env,
-          RIDE_CONNECT: '',
-          RIDE_SPAWN: '',
-          DYALOG_SPAWN: '',
-          RIDE_AUTO_START: 0,
-        },
-      });
-      if (D.ide.dead) window.close();
+      if (!D.desktop) return;
+      D.newSession().then(() => {
+        if (D.ide && D.ide.dead) D.quit();
+      }, (e) => $.err(`${e.message}`, 'New Session failed'));
     },
     CNNW() { D.configNew(); },
     CNCL() { D.configClone(); },
@@ -145,18 +147,14 @@
       }
     },
     NEW() {
-      if (!D.el) return;
+      if (!D.desktop) return;
       if (D.ide.floating) {
         D.host.ipc.send('main', 'NEW');
         return;
       }
       if (D.lastSpawnedExe) {
-        const e = {};
-        Object.keys(process.env).forEach((k) => { e[k] = process.env[k]; });
-        e.RIDE_SPAWN = D.lastSpawnedExe; const p = D.el.process.argv;
-        nodeRequire('child_process').spawn(p[0], p.slice(1), {
-          detached: true, stdio: ['ignore', 'ignore', 'ignore'], env: e,
-        });
+        D.host.sys.relaunch({ RIDE_SPAWN: D.lastSpawnedExe })
+          .catch((e) => $.err(`${e.message}`, 'New Session failed'));
       } else {
         $.err('The current session is remote.\nTo connect elsewhere or\nlaunch a local interpreter,\n'
             + 'please use "New Session..." instead.', 'Cannot Start New Session');
@@ -239,7 +237,7 @@
       me.revealRange(monaco.Range.fromPositions(me.getPosition()));
     },
     JSC() {
-      let w; D.el && (w = D.el.BrowserWindow.getFocusedWindow()) && w.webContents.toggleDevTools();
+      D.desktop && D.host.sys.toggleDevTools(D.host.win.current());
     },
     LOG() {
       if (!D.desktop) return;

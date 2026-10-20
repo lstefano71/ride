@@ -26,6 +26,10 @@
     "core:window:allow-set-min-size",
     "core:webview:allow-create-webview-window",
     "dialog:allow-message",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "opener:allow-open-url",
+    "opener:allow-default-urls",
+    "clipboard-manager:allow-read-text",
+    "clipboard-manager:allow-write-text"
   ]
 }

@@ -1,5 +1,7 @@
 mod conn;
+mod fs;
 mod store;
+mod sys;
 mod tls;
 
 use tauri::Manager;
@@ -8,6 +10,14 @@ use tauri::Manager;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
+        // D.host.sys's snapshot, in every page before its scripts run
+        .plugin(
+            tauri::plugin::Builder::<tauri::Wry>::new("ride-sys")
+                .js_init_script(sys::init_script())
+                .build(),
+        )
         .manage(conn::Conns::default())
         // Hidden auxiliary windows (prefs, dialog, status) would keep the app alive.
         .on_window_event(|w, e| {
@@ -24,6 +34,13 @@ pub fn run() {
             store::store_read,
             store::store_write,
             store::store_mtime,
+            sys::sys_relaunch,
+            sys::sys_toggle_devtools,
+            sys::sys_print,
+            fs::fs_read_text,
+            fs::fs_write_text,
+            fs::fs_append_text,
+            fs::fs_remove,
         ])
         .run(tauri::generate_context!())
         .expect("error while running RIDE");

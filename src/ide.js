@@ -931,7 +931,7 @@ D.IDE.prototype = {
       '{PID}': ri.pid,
       '{CHARS}': ch,
       '{BITS}': bits,
-      '{RIDE_PID}': D.el ? D.el.process.pid : '?',
+      '{RIDE_PID}': D.desktop ? D.host.sys.pid : '?',
       '{RIDE_VER_A}': rva,
       '{RIDE_VER_B}': rvb,
       '{RIDE_VER_C}': rvc,

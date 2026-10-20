@@ -126,6 +126,64 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
       };
       return Promise.resolve();
     },
+    // fn(paths): files dropped onto the current window
+    onFileDrop(fn) {
+      const { webUtils } = rq('electron');
+      window.addEventListener('dragover', (e) => { e.preventDefault(); });
+      window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fn([...e.dataTransfer.files].map((f) => webUtils.getPathForFile(f)).filter((x) => x));
+      });
+      return Promise.resolve();
+    },
+  };
+
+  // sys: process facts (of the main process, which RIDE was started as) and calls that
+  // act on the app or a window.
+  const rp = remote.process;
+  const promise = (f) => (...a) => new Promise((resolve) => { resolve(f(...a)); });
+  let locale;
+  D.host.sys = {
+    env: process.env,
+    argv: rp.argv,
+    platform: process.platform,
+    arch: process.arch,
+    pid: rp.pid,
+    versions: {
+      electron: process.versions.electron,
+      chrome: process.versions.chrome,
+      node: process.versions.node,
+    },
+    get locale() {
+      locale = locale || rq('os-locale').sync();
+      return locale;
+    },
+    tempDir: remote.app.getPath('temp'),
+    // env: variables to override in the new instance
+    relaunch: promise((e = {}) => {
+      const p = rp.argv;
+      rq('child_process').spawn(p[0], p.slice(1), {
+        detached: true,
+        stdio: ['ignore', 'ignore', 'ignore'],
+        env: { ...process.env, ...e },
+      });
+    }),
+    toggleDevTools: onWin((w) => w.webContents.toggleDevTools()),
+    print: onWin((w) => w.webContents.print({ printBackground: true })),
+    openExternal: (url) => remote.shell.openExternal(url),
+    clipboard: {
+      readText: promise(() => remote.clipboard.readText()),
+      writeText: promise((t) => remote.clipboard.writeText(t)),
+    },
+  };
+
+  // fs: text files by path. Synchronous underneath, so calls land in order.
+  const nfs = rq('fs');
+  D.host.fs = {
+    readText: promise((f) => nfs.readFileSync(f, 'utf8')),
+    writeText: promise((f, t) => nfs.writeFileSync(f, t)),
+    appendText: promise((f, t) => nfs.appendFileSync(f, t)),
+    remove: promise((f) => nfs.rmSync(f, { force: true })),
   };
 
   // The rest is for index.html pages only.
@@ -173,7 +231,6 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
     fs.writeFileSync(f, text);
     return mtime(f);
   };
-  const promise = (f) => (...a) => new Promise((resolve) => { resolve(f(...a)); });
   let prefs = null;
   try {
     const r = read('prefs');
