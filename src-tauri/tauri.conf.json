@@ -1,0 +1,45 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "RIDE",
+  "mainBinaryName": "ride",
+  "version": "../package.json",
+  "identifier": "com.dyalog.ride",
+  "build": {
+    "frontendDist": "../_/tauri-frontend",
+    "beforeDevCommand": "npm run tauri:stage",
+    "beforeBuildCommand": "npm run tauri:stage"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "RIDE",
+        "width": 800,
+        "height": 600,
+        "minWidth": 400,
+        "minHeight": 400,
+        "backgroundColor": "#7688d9",
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": false,
+    "targets": "all",
+    "copyright": "(c) 2014-2026 Dyalog Ltd",
+    "category": "DeveloperTool",
+    "shortDescription": "Cross-platform IDE for Dyalog APL",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
