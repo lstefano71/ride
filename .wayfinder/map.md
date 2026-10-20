@@ -32,10 +32,11 @@ RIDE runs as a Tauri v2 app built from the `tauri-port` branch: it connects over
 - [Run the Electron RIDE against Dyalog 20 as a baseline](tickets/002-baseline-electron-against-dyalog20.md): works; scripted CDP smoke check (session, editor, tracer, floating) all pass; Electron install needs a manual workaround on Node 26/npm 12; lint isn't a usable gate.
 - [Scaffold a Tauri v2 shell that loads the existing frontend](tickets/006-scaffold-tauri-shell.md): `src-tauri/` renders the untouched frontend with no Node (7.02 MB release exe); assets are staged into `_/tauri-frontend` with `node_modules` renamed to `vendor/`; without `D.el` it falls into browser mode and its WebSocket fails harmlessly.
 - [Design the host adapter interface](tickets/007-design-host-adapter.md): one async-only `D.host` (areas `conn/win/ipc/menu/dlg/store/sys/fs`) implemented by both shells ([ADR 0001](../docs/adr/0001-async-host-adapter.md)); `D.desktop` replaces `D.el` as a flag; windows addressed by label; one migration ticket per area, built and smoke-checked in both shells.
+- [Decide where preferences live under Tauri](tickets/010-decide-prefs-location.md): both shells share Electron's versioned folder (`config_dir()/Ride-4.8`) with identical files and no migration; Rust resolves paths; last writer wins; unthrottled write-behind; winstate shared with matching semantics.
 
 ## Not yet specified
 
-- **Window bounds and layouts.** Porting `main.js`'s two-layout bounds save/restore (the window-state plugin doesn't fit) and the launch↔main layout switch (`save-win`, `toggleConfig`) onto `D.host.win`.
+- **Window bounds and layouts.** Porting `main.js`'s two-layout bounds save/restore (the window-state plugin doesn't fit) and the launch↔main layout switch (`save-win`, `toggleConfig`) onto `D.host.win`. `winstate.json` is shared with Electron, so Tauri must write bounds with the same meaning (see [Decide where preferences live under Tauri](tickets/010-decide-prefs-location.md)).
 - **Packaging and size.** Bundle config per platform (bundling is off in the scaffold), Linux WebKitGTK quirks (IME, fonts, NVIDIA flicker), macOS paste prompt. The bare Windows exe is 7 MB, so size is a check to repeat, not work to do.
 - **Build integration.** Staging (`npm run tauri:stage`) already feeds Grunt/LESS output into Tauri. Still open: restaging during `tauri dev` without a manual step, and whether CI is touched at all.
 
