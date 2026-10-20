@@ -1,18 +1,26 @@
-// two menu implementations -- one native and one in html
+// two menu implementations -- one native (through D.host.menu) and one in html
+let menuGen = 0; // bumped per native menu, so pref listeners of replaced menus go quiet
 D.installMenu = function Menu(mx) {
-  if (D.el) {
+  if (D.desktop) {
     const pk = D.prf.keys();
     const k = {}; // k:a map of all keyboard shortcuts
     for (let i = 0; i < D.cmds.length; i++) {
       const [c,, d] = D.cmds[i];
       [k[c]] = (pk[c] || d);
     } // c:code, d:defaults
+    menuGen += 1;
+    const gen = menuGen;
+    const acts = {}; // id → DSL item
+    const prefs = []; // [id, checkBoxPref]
+    let n = 0;
     const render = (x) => {
-      let mi;
-      if (x[''] === '-') return new D.el.MenuItem({ type: 'separator' });
+      if (x[''] === '-') return { type: 'separator' };
+      const id = `m${gen}.${n}`;
+      n += 1;
+      acts[id] = x;
       const h = {
+        id,
         label: x[''],
-        click: x.action,
         accelerator: x.cmd && k[x.cmd] ? k[x.cmd].replace(/-(.)/g, '+$1') : null,
       };
       if (x.group) {
@@ -21,8 +29,7 @@ D.installMenu = function Menu(mx) {
       } else if (x.checkBoxPref) {
         h.type = 'checkbox';
         h.checked = !!x.checkBoxPref();
-        if (x.action) h.click = () => { x.action(mi.checked); };
-        x.checkBoxPref((v) => { mi.checked = !!v; });
+        prefs.push([id, x.checkBoxPref]);
       }
       const roles = {
         cut: 0,
@@ -37,17 +44,21 @@ D.installMenu = function Menu(mx) {
       };
       const r = x[''].replace(/[& ]/g, '').toLowerCase();
       if (r in roles) h.role = roles[r] || r;
-      if (x.items) {
-        h.submenu = new D.el.Menu();
-        x.items.forEach((y) => { h.submenu.append(render(y)); });
-      }
-      mi = new D.el.MenuItem(h);
-      return mi;
+      if (x.items) h.items = x.items.map(render);
+      return h;
     };
-    const m = new D.el.Menu();
-    mx.forEach((y) => { m.append(render(y)); });
-    if (D.mac) D.el.Menu.setApplicationMenu(m);
-    else D.elw.setMenu(m);
+    const template = mx.map(render);
+    const onClick = (id, checked) => {
+      const x = acts[id];
+      if (!x || !x.action) return;
+      x.checkBoxPref ? x.action(checked) : x.action();
+    };
+    D.host.menu.setApp(template, onClick).then((m) => {
+      prefs.forEach(([id, p]) => {
+        gen === menuGen && m.setChecked(id, !!p());
+        p((v) => { gen === menuGen && m.setChecked(id, !!v); });
+      });
+    }, (e) => { console.error(e); }); // eslint-disable-line no-console
   } else {
     const arg = mx;
     // DOM structure:

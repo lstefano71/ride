@@ -13,7 +13,7 @@ const Console = console;
     }
 
     D.createContextMenu = (el, win) => {
-      if (!D.el) return;
+      if (!D.desktop) return;
       el.oncontextmenu = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -80,8 +80,16 @@ const Console = console;
             }
           }
         }
-        const cmenu = D.el.Menu.buildFromTemplate(cmitems);
-        cmenu.popup();
+        const acts = {}; // id → click
+        const template = cmitems.map((x, i) => {
+          const { click, ...h } = x;
+          if (click) {
+            h.id = `c${i}`;
+            acts[h.id] = click;
+          }
+          return h;
+        });
+        D.host.menu.popup(template).then((id) => { id && acts[id] && acts[id](); });
       };
     };
     D.createContextMenu(window);

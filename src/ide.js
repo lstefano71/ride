@@ -386,7 +386,7 @@ D.IDE = function IDE(opts = {}) {
   };
   toggleStats();
   const updTopBtm = $.debounce(100, () => {
-    ide.dom.style.top = `${(D.prf.lbar() ? I.lb.offsetHeight : 0) + (D.el ? 0 : 23)}px`;
+    ide.dom.style.top = `${(D.prf.lbar() ? I.lb.offsetHeight : 0) + (D.desktop ? 0 : 23)}px`;
     ide.dom.style.bottom = `${I.sb.offsetHeight}px`;
     gl.updateSize(ide.dom.clientWidth, ide.dom.clientHeight);
     ide.updPW();

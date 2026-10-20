@@ -26,3 +26,8 @@ Follow the interface in [Design the host adapter interface](007-design-host-adap
 - The unsaved-changes prompt in `ide.js` `onbeforeunload` already calls `D.host.dlg.message`. Only the veto mechanics move to `onCloseRequested`.
 - `src-tauri/capabilities/default.json` grants `dialog:allow-message`/`allow-open` (and `core:default`) to the `main` window only. Add each new window label, or dialogs and IPC from those windows will be denied.
 - Electron dialogs are parented to the focused app window. If you need a specific window, add a `parent` label option to `D.host.dlg`.
+
+**Handed over by [Move native and context menus onto D.host.menu](016-host-menus.md#resolution):**
+
+- The native menu now shows under Tauri, so View > Show Status Window (`ide.js:420`, `D.el.BrowserWindow`) and Help > About are reachable there and still hit `D.el` code.
+- Context menus pop up without a parent window: Electron uses the focused window, and Tauri uses the calling window. Floating editors get them for free once they load the adapters.

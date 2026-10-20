@@ -52,7 +52,7 @@
     };
     const evalExpr = (cond) => {
       const mVars = {
-        browser: !D.el,
+        browser: !D.desktop,
         local: D.isLocalInterpreter,
         mac: D.mac,
         win: D.win,

@@ -102,6 +102,41 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
     },
   };
 
+  // menu: native menus built from plain templates
+  // ({id, label, accelerator, type, checked, enabled, visible, role, items}).
+  const menuOf = (template, onClick) => D.el.Menu.buildFromTemplate(template.map(function conv(x) {
+    const { items, ...h } = x;
+    h.accelerator || delete h.accelerator;
+    if (items) h.submenu = items.map(conv);
+    else if (x.id && x.type !== 'separator') h.click = (mi) => onClick(x.id, !!mi.checked);
+    return h;
+  }));
+  // A click resolves its id; closing the menu without one resolves null once any
+  // pending click has had the chance to arrive.
+  const clickOrNull = (show) => new Promise((resolve) => {
+    show((id) => resolve(id), () => setTimeout(() => resolve(null), 100));
+  });
+  D.host.menu = {
+    // onClick(id, checked): checked is the item's new state
+    setApp(template, onClick) {
+      const m = menuOf(template, onClick);
+      if (D.mac) D.el.Menu.setApplicationMenu(m);
+      else D.elw.setMenu(m);
+      return Promise.resolve({
+        setChecked(id, v) {
+          const mi = m.getMenuItemById(id);
+          mi && (mi.checked = !!v);
+          return Promise.resolve();
+        },
+      });
+    },
+    popup(template) {
+      return clickOrNull((click, closed) => {
+        menuOf(template, click).popup({ callback: closed });
+      });
+    },
+  };
+
   // conn: whole RIDE messages over a socket. Each frame is a 4-byte big-endian
   // length (counting itself), the magic "RIDE", then the UTF-8 payload.
   const net = nodeRequire('net');

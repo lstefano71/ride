@@ -65,6 +65,117 @@ var D = typeof D === 'undefined' ? {} : D; // eslint-disable-line no-var, no-use
     },
   };
 
+  // menu: native menus through Tauri's menu API, from plain templates
+  // ({id, label, accelerator, type, checked, enabled, visible, role, items}).
+  const tm = window.__TAURI__.menu;
+  const mac = /Mac/.test(navigator.platform);
+  const predefined = {
+    cut: 'Cut',
+    copy: 'Copy',
+    paste: 'Paste',
+    undo: 'Undo',
+    redo: 'Redo',
+    selectall: 'SelectAll',
+    ...mac && { hide: 'Hide', hideothers: 'HideOthers', unhide: 'ShowAll' },
+  };
+  // Tauri rejects a whole menu over one accelerator it can't parse, so pass only
+  // the forms it knows (see muda's accelerator parser).
+  const accelKey = /^([a-z0-9`\\[\],=\-.';/]|f([1-9]|1[0-9]|2[0-4])|enter|esc(ape)?|tab|space|backspace|delete|insert|home|end|page(up|down)|(arrow)?(up|down|left|right)|pause(break)?)$/i;
+  const accelerator = (a) => {
+    if (!a) return undefined;
+    const s = a.replace(/-(.)/g, '+$1');
+    const m = /^((?:(?:ctrl|control|shift|alt|option|cmd|command|super|meta)\+)*)(.+)$/i.exec(s);
+    return m && accelKey.test(m[2]) ? s : undefined;
+  };
+  const toggleFullscreen = () => {
+    const w = window.__TAURI__.window.getCurrentWindow();
+    return w.isFullscreen().then((f) => w.setFullscreen(!f));
+  };
+  // A built menu: checks maps the ids of check/radio items to {item, group, checked}.
+  const buildMenu = (template, onClick) => {
+    const checks = {};
+    const setChecked = (id, v) => {
+      const c = checks[id];
+      if (!c) return Promise.resolve();
+      c.checked = !!v;
+      return c.item.setChecked(c.checked);
+    };
+    const click = (id) => {
+      const c = checks[id];
+      if (c && c.group) {
+        Object.keys(checks).forEach((k) => checks[k].group === c.group && setChecked(k, k === id));
+      } else if (c) {
+        setChecked(id, !c.checked); // muda toggles on its own on some platforms only
+      }
+      onClick(id, c ? c.checked : false);
+    };
+    let groups = 0;
+    const conv = (xs) => {
+      let group = null; // radio items between separators form a group
+      return Promise.all(xs.filter((x) => x.visible !== false).map((x) => {
+        if (x.type !== 'radio') group = null;
+        else if (!group) { groups += 1; group = `g${groups}`; }
+        if (x.type === 'separator') return { item: 'Separator' };
+        const enabled = x.enabled !== false;
+        if (x.items) {
+          return conv(x.items).then((items) => ({
+            id: x.id, text: x.label, enabled, items,
+          }));
+        }
+        const p = predefined[x.role];
+        if (p && enabled) return { item: p, text: x.label };
+        const h = {
+          id: x.id, text: x.label, enabled, accelerator: accelerator(x.accelerator),
+        };
+        h.accelerator || delete h.accelerator;
+        if (x.role === 'togglefullscreen') {
+          h.action = () => { toggleFullscreen(); onClick(x.id, false); };
+          return h;
+        }
+        if (!x.id) return h;
+        h.action = () => click(x.id);
+        if (x.type !== 'checkbox' && x.type !== 'radio') return h;
+        h.checked = !!x.checked;
+        const g = x.type === 'radio' ? group : null;
+        return tm.CheckMenuItem.new(h).then((item) => {
+          checks[x.id] = { item, group: g, checked: h.checked };
+          return item;
+        });
+      }));
+    };
+    return conv(template)
+      .then((items) => tm.Menu.new({ items }))
+      .then((menu) => ({ menu, setChecked }));
+  };
+  const menuError = (e) => (e instanceof Error ? e : new Error(String(e)));
+  let appMenu = null; // the menu in place
+  let appNext = Promise.resolve(); // setApp calls apply in order
+  D.host.menu = {
+    // onClick(id, checked): checked is the item's new state
+    setApp(template, onClick) {
+      const p = appNext.then(() => buildMenu(template, onClick)).then((m) => {
+        const set = mac ? m.menu.setAsAppMenu() : m.menu.setAsWindowMenu();
+        return set.then(() => {
+          appMenu && appMenu.menu.close().catch(() => {});
+          appMenu = m;
+          const setChecked = (id, v) => (appMenu === m ? m.setChecked(id, v) : Promise.resolve());
+          return { setChecked };
+        });
+      }).catch((e) => { throw menuError(e); });
+      appNext = p.catch(() => {});
+      return p;
+    },
+    // A click resolves its id; closing the menu without one resolves null once any
+    // pending click has had the chance to arrive.
+    popup(template) {
+      return new Promise((resolve, reject) => {
+        buildMenu(template, (id) => resolve(id)).then((m) => m.menu.popup().then(() => {
+          setTimeout(() => { resolve(null); m.menu.close().catch(() => {}); }, 100);
+        })).catch((e) => reject(menuError(e)));
+      });
+    },
+  };
+
   const connError = (e) => (e && typeof e === 'object'
     ? Object.assign(new Error(e.message), e)
     : Object.assign(new Error(String(e)), { code: 'EIO' }));
