@@ -4,7 +4,7 @@ const Console = console;
   const init = () => {
     I.apl_font.hidden = true;
 
-    if (D.el) {
+    if (D.desktop) {
       document.onmousewheel = (e) => {
         const d = e.wheelDelta;
         if (d && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) D.commands[d > 0 ? 'ZMI' : 'ZMO']();
@@ -107,18 +107,28 @@ const Console = console;
     }
 
     const loc = window.location;
-    if (D.el) {
-      const qp = nodeRequire('querystring').parse(loc.search.slice(1));
-      if (qp.type === 'prf') {
-        D.ipc.config.appspace = qp.appid;
+    if (D.desktop) {
+      const qp = new URLSearchParams(loc.search);
+      const type = qp.get('type');
+      if (type === 'prf') {
+        D.ipc.config.appspace = qp.get('appid');
         document.body.className += ' floating-window';
         D.IPC_Prf();
         I.splash.hidden = 1;
-      } else if (qp.type === 'editor') {
-        D.ipc.config.appspace = qp.appid;
+      } else if (type === 'editor') {
+        D.ipc.config.appspace = qp.get('appid');
         document.body.className += ' floating-window';
-        D.IPC_Client(+qp.winId);
+        D.IPC_Client(+qp.get('winId'));
         I.splash.hidden = 1;
+      } else if (D.host.kind === 'tauri') {
+        // The Connect page (cn.js) still needs Node; it reaches Tauri with
+        // "Move cn.js to a plain script on a message-level connection".
+        I.splash.hidden = 1;
+        const p = document.createElement('div');
+        p.id = 'host_pending';
+        p.style = 'position:absolute;top:40%;width:100%;text-align:center';
+        p.textContent = 'Connect page not yet ported to Tauri.';
+        document.body.appendChild(p);
       } else {
         const winsLoaded = D.IPC_Server();
         const appid = D.ipc.config.appspace;
@@ -245,7 +255,7 @@ const Console = console;
     if (D.mac) platform = ' platform-mac';
     else if (D.win) platform = ' platform-windows';
 
-    if (D.el) document.body.className += platform;
+    if (D.desktop) document.body.className += platform;
 
     window.focused = true;
     window.onblur = (x) => { window.focused = x.type === 'focus'; };
@@ -327,5 +337,5 @@ const Console = console;
     }
   };
 
-  D.mop.then(() => init());
+  Promise.all([D.mop, D.host && D.host.ready]).then(() => init());
 }

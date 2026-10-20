@@ -33,6 +33,7 @@ RIDE runs as a Tauri v2 app built from the `tauri-port` branch: it connects over
 - [Scaffold a Tauri v2 shell that loads the existing frontend](tickets/006-scaffold-tauri-shell.md): `src-tauri/` renders the untouched frontend with no Node (7.02 MB release exe); assets are staged into `_/tauri-frontend` with `node_modules` renamed to `vendor/`; without `D.el` it falls into browser mode and its WebSocket fails harmlessly.
 - [Design the host adapter interface](tickets/007-design-host-adapter.md): one async-only `D.host` (areas `conn/win/ipc/menu/dlg/store/sys/fs`) implemented by both shells ([ADR 0001](../docs/adr/0001-async-host-adapter.md)); `D.desktop` replaces `D.el` as a flag; windows addressed by label; one migration ticket per area, built and smoke-checked in both shells.
 - [Decide where preferences live under Tauri](tickets/010-decide-prefs-location.md): both shells share Electron's versioned folder (`config_dir()/Ride-4.8`) with identical files and no migration; Rust resolves paths; last writer wins; unthrottled write-behind; winstate shared with matching semantics ([ADR 0002](../docs/adr/0002-shared-versioned-data-folder.md)).
+- [Introduce the host adapter skeleton and desktop flag](tickets/012-host-adapter-skeleton.md): `src/host/{electron,tauri}.js` set `D.host`/`D.desktop` on every page; Tauri leaves browser mode for a placeholder (the Connect page moved to the cn.js ticket); only 3 flag sites were shell-neutral, and the rest are listed on their area tickets.
 
 ## Not yet specified
 
